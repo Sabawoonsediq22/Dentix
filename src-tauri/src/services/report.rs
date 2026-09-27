@@ -76,12 +76,17 @@ impl ReportService {
         let start_dt = NaiveDate::parse_from_str(&start_date, "%Y-%m-%d").unwrap_or(now.date_naive());
         let end_dt = NaiveDate::parse_from_str(&end_date, "%Y-%m-%d").unwrap_or(now.date_naive());
 
-        let total_patients: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM patients")
-            .fetch_one(pool)
-            .await?;
+        let active_patients: i64 = sqlx::query_scalar(
+            "SELECT COUNT(DISTINCT patient_id) FROM visits
+             WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
+        )
+        .bind(&start_date)
+        .bind(&end_date)
+        .fetch_one(pool)
+        .await?;
 
         let total_visits: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM visits WHERE visit_date >= ? AND visit_date <= ?"
+            "SELECT COUNT(*) FROM visits WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -89,7 +94,7 @@ impl ReportService {
         .await?;
 
         let completed_visits: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM visits WHERE status = 'Completed' AND visit_date >= ? AND visit_date <= ?"
+            "SELECT COUNT(*) FROM visits WHERE status = 'Completed' AND date(visit_date) >= ? AND date(visit_date) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -97,15 +102,7 @@ impl ReportService {
         .await?;
 
         let cancelled_visits: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM visits WHERE status = 'Cancelled' AND visit_date >= ? AND visit_date <= ?"
-        )
-        .bind(&start_date)
-        .bind(&end_date)
-        .fetch_one(pool)
-        .await?;
-
-        let revenue: Option<f64> = sqlx::query_scalar(
-            "SELECT COALESCE(SUM(COALESCE(paid_afn, 0.0) + COALESCE(paid_usd, 0.0)), 0.0) FROM invoices WHERE issued_at >= ? AND issued_at <= ?"
+            "SELECT COUNT(*) FROM visits WHERE status = 'Cancelled' AND date(visit_date) >= ? AND date(visit_date) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -116,15 +113,7 @@ impl ReportService {
             "SELECT
                COALESCE(SUM(COALESCE(paid_afn, 0.0)), 0.0),
                COALESCE(SUM(COALESCE(paid_usd, 0.0)), 0.0)
-             FROM invoices WHERE issued_at >= ? AND issued_at <= ?"
-        )
-        .bind(&start_date)
-        .bind(&end_date)
-        .fetch_one(pool)
-        .await?;
-
-        let outstanding_balance: Option<f64> = sqlx::query_scalar(
-            "SELECT COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) FROM invoices WHERE status IN ('Unpaid', 'Partial') AND issued_at >= ? AND issued_at <= ?"
+             FROM invoices WHERE date(issued_at) >= ? AND date(issued_at) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -135,7 +124,7 @@ impl ReportService {
             "SELECT
                COALESCE(SUM(COALESCE(outstanding_afn, 0.0)), 0.0),
                COALESCE(SUM(COALESCE(outstanding_usd, 0.0)), 0.0)
-             FROM invoices WHERE status IN ('Unpaid', 'Partial') AND issued_at >= ? AND issued_at <= ?"
+             FROM invoices WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -144,10 +133,10 @@ impl ReportService {
 
         // Daily trends using range-based queries
         let active_patients_rows: Vec<(String, f64)> = sqlx::query_as(
-            "SELECT visit_date as day_str, CAST(COUNT(DISTINCT patient_id) AS REAL) as val
+            "SELECT date(visit_date) as day_str, CAST(COUNT(DISTINCT patient_id) AS REAL) as val
              FROM visits
-             WHERE visit_date >= ? AND visit_date <= ?
-             GROUP BY visit_date
+             WHERE date(visit_date) >= ? AND date(visit_date) <= ?
+             GROUP BY date(visit_date)
              ORDER BY day_str"
         )
         .bind(&start_date)
@@ -157,10 +146,10 @@ impl ReportService {
         let active_patients_trend = fill_range_daily_trends(start_dt, end_dt, active_patients_rows);
 
         let visits_rows: Vec<(String, f64)> = sqlx::query_as(
-            "SELECT visit_date as day_str, CAST(COUNT(*) AS REAL) as val
+            "SELECT date(visit_date) as day_str, CAST(COUNT(*) AS REAL) as val
              FROM visits
-             WHERE visit_date >= ? AND visit_date <= ?
-             GROUP BY visit_date
+             WHERE date(visit_date) >= ? AND date(visit_date) <= ?
+             GROUP BY date(visit_date)
              ORDER BY day_str"
         )
         .bind(&start_date)
@@ -172,7 +161,7 @@ impl ReportService {
         let revenue_rows: Vec<(String, f64)> = sqlx::query_as(
             "SELECT date(received_at) as day_str, COALESCE(SUM(COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0)), 0.0) as val
              FROM payments
-             WHERE received_at >= ? AND received_at <= ?
+             WHERE date(received_at) >= ? AND date(received_at) <= ?
              GROUP BY date(received_at)
              ORDER BY day_str"
         )
@@ -185,7 +174,7 @@ impl ReportService {
         let outstanding_rows: Vec<(String, f64)> = sqlx::query_as(
             "SELECT date(issued_at) as day_str, COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) as val
              FROM invoices
-             WHERE issued_at >= ? AND issued_at <= ?
+             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?
              GROUP BY date(issued_at)
              ORDER BY day_str"
         )
@@ -198,7 +187,7 @@ impl ReportService {
         // Previous period comparisons
         let prev_active_patients: i64 = sqlx::query_scalar(
             "SELECT COUNT(DISTINCT patient_id) FROM visits
-             WHERE visit_date >= ? AND visit_date <= ?"
+             WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -207,7 +196,7 @@ impl ReportService {
 
         let prev_total_visits: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM visits
-             WHERE visit_date >= ? AND visit_date <= ?"
+             WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -216,7 +205,7 @@ impl ReportService {
 
         let prev_revenue: f64 = sqlx::query_scalar(
             "SELECT COALESCE(SUM(COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0)), 0.0) FROM payments
-             WHERE received_at >= ? AND received_at <= ?"
+             WHERE date(received_at) >= ? AND date(received_at) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -228,7 +217,7 @@ impl ReportService {
                COALESCE(SUM(COALESCE(amount_afn, 0.0)), 0.0),
                COALESCE(SUM(COALESCE(amount_usd, 0.0)), 0.0)
              FROM payments
-             WHERE received_at >= ? AND received_at <= ?"
+             WHERE date(received_at) >= ? AND date(received_at) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -237,7 +226,7 @@ impl ReportService {
 
         let prev_outstanding: f64 = sqlx::query_scalar(
             "SELECT COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) FROM invoices
-             WHERE issued_at >= ? AND issued_at <= ?"
+             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -249,7 +238,7 @@ impl ReportService {
                COALESCE(SUM(COALESCE(outstanding_afn, 0.0)), 0.0),
                COALESCE(SUM(COALESCE(outstanding_usd, 0.0)), 0.0)
              FROM invoices
-             WHERE issued_at >= ? AND issued_at <= ?"
+             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -257,12 +246,12 @@ impl ReportService {
         .await?;
 
         Ok(ReportSummary {
-            active_patients: total_patients,
+            active_patients,
             total_visits_this_month: total_visits,
-            revenue_this_month: revenue.unwrap_or(0.0),
+            revenue_this_month: revenue_row.0 + revenue_row.1,
             revenue_this_month_afn: revenue_row.0,
             revenue_this_month_usd: revenue_row.1,
-            outstanding_balance: outstanding_balance.unwrap_or(0.0),
+            outstanding_balance: outstanding_balance_row.0 + outstanding_balance_row.1,
             outstanding_balance_afn: outstanding_balance_row.0,
             outstanding_balance_usd: outstanding_balance_row.1,
             completed_visits_this_month: completed_visits,
@@ -315,7 +304,7 @@ impl ReportService {
                         COALESCE(SUM(COALESCE(paid_afn, 0.0)), 0.0) as revenue_afn,
                         COALESCE(SUM(COALESCE(paid_usd, 0.0)), 0.0) as revenue_usd
                  FROM invoices
-                 WHERE issued_at >= ? AND issued_at <= ?
+                 WHERE date(issued_at) >= ? AND date(issued_at) <= ?
                  GROUP BY date(issued_at)
                  ORDER BY month ASC"
             )
@@ -330,7 +319,7 @@ impl ReportService {
                         COALESCE(SUM(COALESCE(paid_afn, 0.0)), 0.0) as revenue_afn,
                         COALESCE(SUM(COALESCE(paid_usd, 0.0)), 0.0) as revenue_usd
                  FROM invoices
-                 WHERE issued_at >= ? AND issued_at <= ?
+                 WHERE date(issued_at) >= ? AND date(issued_at) <= ?
                  GROUP BY strftime('%Y-%m', issued_at)
                  ORDER BY month ASC"
             )

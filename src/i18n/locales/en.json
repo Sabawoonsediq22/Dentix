@@ -417,7 +417,8 @@
       "selectEnd": "Select end",
       "vsYesterday": "vs yesterday",
       "vsLastWeek": "vs last week",
-      "vsLastMonth": "vs last month"
+      "vsLastMonth": "vs last month",
+      "vsPreviousPeriod": "vs previous period"
     }
   },
   "billing": {

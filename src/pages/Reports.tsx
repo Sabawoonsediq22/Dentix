@@ -93,9 +93,16 @@ const formatUSD = (val: number) =>
   "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const formatMonth = (monthStr: string) => {
-  const [, m] = monthStr.split("-");
-  return MONTH_NAMES[parseInt(m, 10) - 1] || monthStr;
+  const parts = monthStr.split("-");
+  if (parts.length === 3) {
+    const month = MONTH_NAMES[parseInt(parts[1], 10) - 1];
+    return month ? `${month} ${parseInt(parts[2], 10)}` : monthStr;
+  }
+  return MONTH_NAMES[parseInt(parts[1], 10) - 1] || monthStr;
 };
+
+const toDateString = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 
 const Reports: React.FC = () => {
   const { t } = useTranslation();
@@ -108,10 +115,12 @@ const Reports: React.FC = () => {
 
   const reportFilter = useMemo<ReportFilter>(() => {
     if (filterType === "custom") {
+      const start = customStartDate ?? customEndDate;
+      const end = customEndDate;
       return {
         filter_type: "custom",
-        start_date: customStartDate ? customStartDate.toISOString().split("T")[0] : undefined,
-        end_date: customEndDate ? customEndDate.toISOString().split("T")[0] : undefined,
+        start_date: start ? toDateString(start) : undefined,
+        end_date: end ? toDateString(end) : undefined,
       };
     }
     return { filter_type: filterType };
@@ -126,7 +135,6 @@ const Reports: React.FC = () => {
     const sumTrend = (data: DailyTrendPoint[]) =>
       data.reduce((acc, d) => acc + d.value, 0);
 
-    const currentActive = sumTrend(summary.active_patients_trend);
     const currentVisits = sumTrend(summary.visits_trend);
     const currentRevenue = sumTrend(summary.revenue_trend);
     const currentOutstanding = sumTrend(summary.outstanding_trend);
@@ -138,7 +146,9 @@ const Reports: React.FC = () => {
         ? t("reports.filter.vsYesterday", "vs yesterday")
         : filterType === "weekly"
           ? t("reports.filter.vsLastWeek", "vs last week")
-          : t("reports.filter.vsLastMonth", "vs last month");
+          : filterType === "custom"
+            ? t("reports.filter.vsPreviousPeriod", "vs previous period")
+            : t("reports.filter.vsLastMonth", "vs last month");
       return {
         value: `${Math.abs(change).toFixed(1)}% ${periodLabel}`,
         positive: change >= 0,
@@ -151,7 +161,7 @@ const Reports: React.FC = () => {
         value: String(summary.active_patients),
         trendData: summary.active_patients_trend,
         trendColor: "#3b82f6",
-        change: pct(currentActive, summary.prev_active_patients),
+        change: pct(summary.active_patients, summary.prev_active_patients),
       },
       {
         title: t("reports.stats.totalVisits", "Total Visits"),

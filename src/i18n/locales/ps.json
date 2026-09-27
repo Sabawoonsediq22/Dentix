@@ -416,7 +416,8 @@
       "selectEnd": "پای نیټه وټاکئ",
       "vsYesterday": "پر سمه ځل",
       "vsLastWeek": "پر تیره اونۍ",
-      "vsLastMonth": "پر تیره میاشت"
+      "vsLastMonth": "پر تیره میاشت",
+      "vsPreviousPeriod": "پر تیرې میاشتې په پرتله"
     }
   },
   "billing": {
