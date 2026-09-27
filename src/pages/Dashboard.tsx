@@ -30,10 +30,12 @@ const formatAFN = (val: number) =>
   }) + " AFN";
 
 const formatUSD = (val: number) =>
-  "$" + val.toLocaleString("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  val === 0
+    ? ""
+    : "$" + val.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
 
 const computeTrend = (
   today: number,
@@ -127,12 +129,12 @@ const Dashboard: React.FC = () => {
 
     if (statsError || !stats) {
       return [
-        { title: t("dashboard.stats.dailyRevenue", "Daily Revenue"), value: "0 AFN", secondaryValue: "$ 0.00", accent: "green" },
+        { title: t("dashboard.stats.dailyRevenue", "Daily Revenue"), value: "0 AFN", accent: "green" },
         { title: t("dashboard.stats.patientsToday", "Patients Today"), value: "0", accent: "blue" },
-        { title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"), value: "0 AFN", secondaryValue: "$ 0.00", secondary: `0 ${t("dashboard.invoices", "invoices")}`, accent: "orange", onClick: () => navigate("/billing?filter=outstanding") },
+        { title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"), value: "0 AFN", secondary: `0 ${t("dashboard.invoices", "invoices")}`, accent: "orange", onClick: () => navigate("/billing?filter=outstanding") },
         { title: t("dashboard.stats.proceduresPerformed", "Procedures Performed"), value: "00", accent: "purple" },
-        { title: t("dashboard.stats.dailyExpenses", "Daily Expenses"), value: "0 AFN", secondaryValue: "$ 0.00", accent: "red", onClick: () => navigate("/expenses") },
-        { title: t("dashboard.stats.netToday", "Net Today"), value: "0 AFN", secondaryValue: "$ 0.00", accent: "teal" },
+        { title: t("dashboard.stats.dailyExpenses", "Daily Expenses"), value: "0 AFN", accent: "red", onClick: () => navigate("/expenses") },
+        { title: t("dashboard.stats.netToday", "Net Today"), value: "0 AFN", accent: "teal" },
       ];
     }
 

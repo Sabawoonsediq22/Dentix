@@ -92,6 +92,8 @@ const formatAFN = (val: number) =>
 const formatUSD = (val: number) =>
   "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const formatUSDOptional = (val: number) => (val === 0 ? undefined : formatUSD(val));
+
 const formatMonth = (monthStr: string) => {
   const parts = monthStr.split("-");
   if (parts.length === 3) {
@@ -181,7 +183,7 @@ const Reports: React.FC = () => {
       {
         title: t("reports.stats.revenue", "Revenue"),
         value: formatAFN(summary.revenue_this_month_afn),
-        valueUsd: formatUSD(summary.revenue_this_month_usd),
+        valueUsd: formatUSDOptional(summary.revenue_this_month_usd),
         trendData: summary.revenue_trend,
         trendColor: "#22c55e",
         change: pct(currentRevenue, summary.prev_revenue),
@@ -189,7 +191,7 @@ const Reports: React.FC = () => {
       {
         title: t("reports.stats.expenses", "Expenses"),
         value: formatAFN(summary.expenses_this_month_afn),
-        valueUsd: formatUSD(summary.expenses_this_month_usd),
+        valueUsd: formatUSDOptional(summary.expenses_this_month_usd),
         trendData: summary.expenses_trend,
         trendColor: "#ef4444",
         change: pct(currentExpenses, summary.prev_expenses),
@@ -197,7 +199,7 @@ const Reports: React.FC = () => {
       {
         title: t("reports.stats.netProfit", "Net Profit"),
         value: formatAFN(summary.revenue_this_month_afn - summary.expenses_this_month_afn),
-        valueUsd: formatUSD(summary.revenue_this_month_usd - summary.expenses_this_month_usd),
+        valueUsd: formatUSDOptional(summary.revenue_this_month_usd - summary.expenses_this_month_usd),
         trendData: netTrend,
         trendColor: "#8b5cf6",
         change: pct(currentNet, prevNet),
@@ -205,7 +207,7 @@ const Reports: React.FC = () => {
       {
         title: t("reports.stats.outstanding", "Outstanding"),
         value: formatAFN(summary.outstanding_balance_afn),
-        valueUsd: formatUSD(summary.outstanding_balance_usd),
+        valueUsd: formatUSDOptional(summary.outstanding_balance_usd),
         trendData: summary.outstanding_trend,
         trendColor: "#f59e0b",
         change: pct(currentOutstanding, summary.prev_outstanding),
