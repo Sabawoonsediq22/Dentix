@@ -120,6 +120,8 @@ const Dashboard: React.FC = () => {
         { title: t("dashboard.stats.patientsToday", "Patients Today"), accent: "blue", loading: true },
         { title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"), accent: "orange", loading: true },
         { title: t("dashboard.stats.proceduresPerformed", "Procedures Performed"), accent: "purple", loading: true },
+        { title: t("dashboard.stats.dailyExpenses", "Daily Expenses"), accent: "red", loading: true },
+        { title: t("dashboard.stats.netToday", "Net Today"), accent: "teal", loading: true },
       ];
     }
 
@@ -129,6 +131,8 @@ const Dashboard: React.FC = () => {
         { title: t("dashboard.stats.patientsToday", "Patients Today"), value: "0", accent: "blue" },
         { title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"), value: "0 AFN", secondaryValue: "$ 0.00", secondary: `0 ${t("dashboard.invoices", "invoices")}`, accent: "orange", onClick: () => navigate("/billing?filter=outstanding") },
         { title: t("dashboard.stats.proceduresPerformed", "Procedures Performed"), value: "00", accent: "purple" },
+        { title: t("dashboard.stats.dailyExpenses", "Daily Expenses"), value: "0 AFN", secondaryValue: "$ 0.00", accent: "red", onClick: () => navigate("/expenses") },
+        { title: t("dashboard.stats.netToday", "Net Today"), value: "0 AFN", secondaryValue: "$ 0.00", accent: "teal" },
       ];
     }
 
@@ -185,6 +189,30 @@ const Dashboard: React.FC = () => {
         trend: computeTrend(stats.procedures_performed, stats.yesterday_procedures),
         context: t("dashboard.thisMonth", "this month"),
         sparklineData: generateSparkline(stats.procedures_performed, stats.yesterday_procedures),
+      },
+      {
+        title: t("dashboard.stats.dailyExpenses", "Daily Expenses"),
+        value: formatAFN(stats.daily_expenses_afn),
+        secondaryValue: formatUSD(stats.daily_expenses_usd),
+        accent: "red",
+        trend: (() => {
+          const trend = computeTrend(stats.daily_expenses, stats.yesterday_expenses);
+          return trend ? { value: trend.value, positive: !trend.positive } : undefined;
+        })(),
+        onClick: () => navigate("/expenses"),
+        sparklineData: generateSparkline(stats.daily_expenses, stats.yesterday_expenses),
+      },
+      {
+        title: t("dashboard.stats.netToday", "Net Today"),
+        value: formatAFN(stats.net_today_afn),
+        secondaryValue: formatUSD(stats.net_today_usd),
+        accent: "teal",
+        trend: computeTrend(stats.net_today, stats.yesterday_revenue - stats.yesterday_expenses),
+        context: t("dashboard.stats.netContext", "revenue minus expenses"),
+        sparklineData: generateSparkline(
+          stats.net_today,
+          stats.yesterday_revenue - stats.yesterday_expenses,
+        ),
       },
     ];
   }, [stats, statsLoading, statsError, t]);
@@ -389,7 +417,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {statCards.map((stat) => (
           <StatCard
             key={stat.title}

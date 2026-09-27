@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, LoadingSpinner, DatePicker, Button } from "../components/ui";
 import { useReportSummary, useMonthlyRevenue } from "../hooks/useReports";
 import Chart from "react-apexcharts";
-import { PatientIcon, ToothIcon, DownloadIcon, FileIcon } from "../shared/icons/icons";
+import { PatientIcon, ToothIcon, DownloadIcon, FileIcon, CurrencyIcon } from "../shared/icons/icons";
 import type { MonthlyRevenuePoint, DailyTrendPoint, ReportFilter } from "../types/ApiTypes";
-import { exportPatientsReport, exportFinancialReport, exportTreatmentReport } from "../lib/export";
+import { exportPatientsReport, exportFinancialReport, exportTreatmentReport, exportExpensesReport } from "../lib/export";
 import type { ReportFormat } from "../lib/export";
 import { toast } from "../lib/toast-utils";
 import SparklineChart from "../components/charts/SparklineChart";
@@ -137,7 +137,15 @@ const Reports: React.FC = () => {
 
     const currentVisits = sumTrend(summary.visits_trend);
     const currentRevenue = sumTrend(summary.revenue_trend);
+    const currentExpenses = sumTrend(summary.expenses_trend);
     const currentOutstanding = sumTrend(summary.outstanding_trend);
+    const currentNet = currentRevenue - currentExpenses;
+    const prevNet = summary.prev_revenue - summary.prev_expenses;
+
+    const netTrend: DailyTrendPoint[] = summary.revenue_trend.map((point, idx) => ({
+      day: point.day,
+      value: point.value - (summary.expenses_trend[idx]?.value ?? 0),
+    }));
 
     const pct = (cur: number, prev: number): { value: string; positive: boolean } | undefined => {
       if (prev <= 0) return undefined;
@@ -177,6 +185,22 @@ const Reports: React.FC = () => {
         trendData: summary.revenue_trend,
         trendColor: "#22c55e",
         change: pct(currentRevenue, summary.prev_revenue),
+      },
+      {
+        title: t("reports.stats.expenses", "Expenses"),
+        value: formatAFN(summary.expenses_this_month_afn),
+        valueUsd: formatUSD(summary.expenses_this_month_usd),
+        trendData: summary.expenses_trend,
+        trendColor: "#ef4444",
+        change: pct(currentExpenses, summary.prev_expenses),
+      },
+      {
+        title: t("reports.stats.netProfit", "Net Profit"),
+        value: formatAFN(summary.revenue_this_month_afn - summary.expenses_this_month_afn),
+        valueUsd: formatUSD(summary.revenue_this_month_usd - summary.expenses_this_month_usd),
+        trendData: netTrend,
+        trendColor: "#8b5cf6",
+        change: pct(currentNet, prevNet),
       },
       {
         title: t("reports.stats.outstanding", "Outstanding"),
@@ -222,6 +246,9 @@ const Reports: React.FC = () => {
               revenue: summary.revenue_this_month,
               revenue_afn: summary.revenue_this_month_afn,
               revenue_usd: summary.revenue_this_month_usd,
+              expenses: summary.expenses_this_month,
+              expenses_afn: summary.expenses_this_month_afn,
+              expenses_usd: summary.expenses_this_month_usd,
               revenueAfn: summary.revenue_this_month_afn,
               revenueUsd: summary.revenue_this_month_usd,
               monthLabel: formatMonth(new Date().toISOString().slice(0, 7)),
@@ -321,7 +348,7 @@ const Reports: React.FC = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {statCards.map((card, idx) => (
           <StatCard key={idx} {...card} />
         ))}
@@ -331,7 +358,7 @@ const Reports: React.FC = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-base sm:text-lg font-semibold">
-              {t("reports.charts.revenueTrend", "Revenue Trend")}
+              {t("reports.charts.revenueExpenseTrend", "Revenue vs Expenses")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -372,7 +399,7 @@ const Reports: React.FC = () => {
                     yaxis: { lines: { show: true } },
                     padding: { top: 10, right: 10, bottom: 0, left: 10 },
                   },
-                  colors: ["#0d9488", "#60a5fa"],
+                  colors: ["#0d9488", "#60a5fa", "#ef4444", "#f59e0b"],
                   fill: {
                     type: "gradient",
                     gradient: {
@@ -438,7 +465,7 @@ const Reports: React.FC = () => {
                     x: { show: false },
                     y: {
                       formatter: (val: number, opts: any) => {
-                        return opts.seriesIndex === 0 ? formatAFN(val) : formatUSD(val);
+                        return opts.seriesIndex % 2 === 0 ? formatAFN(val) : formatUSD(val);
                       },
                     },
                   },
@@ -454,8 +481,10 @@ const Reports: React.FC = () => {
                   ],
                 }}
                 series={[
-                  { name: "AFN", data: chartData.map((d) => d.revenueAfn) },
-                  { name: "USD", data: chartData.map((d) => d.revenueUsd) },
+                  { name: t("reports.charts.revenueAfn", "Revenue AFN"), data: chartData.map((d) => d.revenueAfn) },
+                  { name: t("reports.charts.revenueUsd", "Revenue USD"), data: chartData.map((d) => d.revenueUsd) },
+                  { name: t("reports.charts.expensesAfn", "Expenses AFN"), data: chartData.map((d) => d.expenses_afn) },
+                  { name: t("reports.charts.expensesUsd", "Expenses USD"), data: chartData.map((d) => d.expenses_usd) },
                 ]}
                 type="bar"
                 height="100%"
@@ -464,11 +493,19 @@ const Reports: React.FC = () => {
             <div className="mt-2 flex items-center justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
               <span className="flex items-center gap-1.5">
                 <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0d9488]" />
-                AFN
+                {t("reports.charts.revenueAfn", "Revenue AFN")}
               </span>
               <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#3b82f6]" />
-                USD
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#60a5fa]" />
+                {t("reports.charts.revenueUsd", "Revenue USD")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ef4444]" />
+                {t("reports.charts.expensesAfn", "Expenses AFN")}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
+                {t("reports.charts.expensesUsd", "Expenses USD")}
               </span>
             </div>
           </CardContent>
@@ -591,7 +628,7 @@ const Reports: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <button
               className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed "
               onClick={() => handleExport("patients", exportPatientsReport)}
@@ -641,6 +678,23 @@ const Reports: React.FC = () => {
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {t("reports.export.treatmentDesc", "Export treatment history and procedures")}
+              </span>
+            </button>
+            <button
+              className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => handleExport("expenses", exportExpensesReport)}
+              disabled={exporting !== null}
+            >
+              {exporting === "expenses" ? (
+                <LoadingSpinner size="md" />
+              ) : (
+                <CurrencyIcon size="md" className="mb-3 text-primary" />
+              )}
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {t("reports.export.expenses", "Expense Report")}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {t("reports.export.expensesDesc", "Export clinic expense records")}
               </span>
             </button>
           </div>

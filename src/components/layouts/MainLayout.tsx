@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import {
   BillingIcon,
   CollapseIcon,
+  CurrencyIcon,
   ExpandIcon,
   LayoutIcon,
   PatientIcon,
@@ -68,6 +69,7 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     { name: t("nav.patients"), href: "/patients", icon: PatientIcon },
     { name: t("nav.visits"), href: "/visits", icon: ClipboardListIcon },
     { name: t("nav.billings"), href: "/billing", icon: BillingIcon },
+    { name: t("nav.expenses"), href: "/expenses", icon: CurrencyIcon, exact: true },
     { name: t("nav.reports"), href: "/reports", icon: ReportsIcon, exact: true },
     { name: t("nav.settings"), href: "/settings", icon: SettingsIcon, exact: true },
   ];

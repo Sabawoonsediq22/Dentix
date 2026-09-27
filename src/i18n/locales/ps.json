@@ -4,6 +4,7 @@
     "patients": "ناروغان",
     "visits": "ټولې لیدنې",
     "billings": "بلینګ",
+    "expenses": "لګښتونه",
     "reports": "رپورټونه",
     "about": "زموږ په اړه",
     "settings": "ترتیبات",
@@ -25,9 +26,12 @@
     "clickToChangeStatus": "د حالت بدلولو لپاره کلیک وکړئ",
     "stats": {
       "dailyRevenue": "ورځنی عاید",
-      "patientsToday": "نن ورځ ناروغان",
+      "patientsToday": "نن ناروغان",
       "outstandingBalance": "پاتې بیلانس",
-      "proceduresPerformed": "ترسره شوي درملنې"
+      "proceduresPerformed": "تکمیل شوې پروسیجرونه",
+      "dailyExpenses": "ورځنې لګښتونه",
+      "netToday": "نن د خالص فایده",
+      "netContext": "عایدات له لګښتونو څخه"
     },
     "patientsFlow": "د ناروغانو جریان",
     "visits": "لیدنې",
@@ -307,6 +311,7 @@
     "delete": "ډیلیټول",
     "deleting": "ډیلیټینګ...",
     "edit": "تغیرول",
+    "save": "خوندي کړئ",
     "back": "بیرته",
     "backToPatients": "بیرته ناروغانو ته",
     "goToDashboard": "ډشبورډ ته وټو"
@@ -317,10 +322,11 @@
     "goHome": "بیرته ډشبورډ ته"
   },
   "breadcrumbs": {
-    "invoices": "فوټونه",
+    "invoices": "فاکتورونه",
     "receipts": "رسیدونه",
     "payments": "تادیې",
-    "treatments": "درملنې"
+    "treatments": "درملنې",
+    "expenses": "لګښتونه"
   },
   "pagination": {
     "showing": "له {{start}} څخه تر {{end}} پورې له {{total}} څخه",
@@ -364,6 +370,8 @@
       "activePatients": "فعال ناروغان",
       "totalVisits": "ټولې لیدنې",
       "revenue": "عاید",
+      "expenses": "لګښتونه",
+      "netProfit": "د خالص فایده",
       "outstanding": "پاتې بیلانس"
     },
     "trend": {
@@ -377,6 +385,11 @@
     },
     "charts": {
       "revenueTrend": "د عاید رجحان",
+      "revenueExpenseTrend": "عاید او لګښت",
+      "revenueAfn": "عاید AFN",
+      "revenueUsd": "عاید USD",
+      "expensesAfn": "لګښت AFN",
+      "expensesUsd": "لګښت USD",
       "visitDistribution": "د لیدنو وېش",
       "count": "شمېره",
       "revenue": "عاید"
@@ -402,7 +415,9 @@
       "financial": "مالي رپورټ",
       "financialDesc": "فاکتورونه او د تادیاتو تاریخ صادر کړئ",
       "treatment": "د درملنې رپورټ",
-      "treatmentDesc": "د درملنې تاریخ او پروسیجرونه صادر کړئ"
+      "treatmentDesc": "د درملنې تاریخ او پروسیجرونه صادر کړئ",
+      "expenses": "د لګښتونو رپورټ",
+      "expensesDesc": "د کلینیک د لګښتونو ریکارډونه صادر کړئ"
     },
     "filter": {
       "period": "وخت وټاکئ",
@@ -480,6 +495,78 @@
       "paymentError": "د تادیې په ثبتولو کې پاتې راغی"
     },
     "currency": "افغانۍ"
+  },
+  "expenses": {
+    "title": "د کلینیک لګښتونه",
+    "description": "ټول د کلینیک لګښتونه تعقب او اداره کړئ.",
+    "addExpense": "لګښت زیاتول",
+    "newExpense": "نوی لګښت",
+    "editExpense": "لګښت سمول",
+    "searchPlaceholder": "د تشریح، ویشیایا یادښتونو له مخې وپلټئ...",
+    "loading": "لګښتونه بارېږي...",
+    "errorLoading": "د لګښتونو په بارولو کې تېروتنه",
+    "stats": {
+      "totalExpenses": "ټولې لګښتونه",
+      "totalSpent": "ټوله لګښت"
+    },
+    "filters": {
+      "category": "ویش",
+      "allCategories": "ټولې ویشې",
+      "from": "له",
+      "to": "تر",
+      "clearDates": "نېټې پاکول"
+    },
+    "methods": {
+      "cash": "نقد",
+      "card": "کارت",
+      "mobile": "موبایل",
+      "insurance": "بیمه"
+    },
+    "table": {
+      "no": "شمېره",
+      "date": "نیټه",
+      "category": "ویش",
+      "description": "تشریح",
+      "amount": "اندازه",
+      "method": "طریقه",
+      "actions": "کړنې",
+      "dateLabel": "نیټه:",
+      "methodLabel": "طریقه:",
+      "empty": "د ستاسو معیار سره سم لګښتونه ونه موندل شول."
+    },
+    "form": {
+      "category": "ویش",
+      "selectCategory": "ویش وټاکئ",
+      "description": "تشریح",
+      "descriptionPlaceholder": "لکې: د میاشتنۍ کرایې تادیه",
+      "date": "نیټه",
+      "amounts": "اندازې",
+      "paymentMethod": "د تادیې طریقه",
+      "notes": "یادښتونه",
+      "notesPlaceholder": "نور توضیحات",
+      "add": "زیاتول"
+    },
+    "errors": {
+      "categoryRequired": "لطفاً ویش وټاکئ",
+      "descriptionRequired": "تشریح اړین دی",
+      "dateRequired": "د لګښت نیټه اړینه ده",
+      "negativeAmount": "اندازې منفي نه کېږي",
+      "amountRequired": "په افغانۍ یا ډالر کې اندازه وليکئ"
+    },
+    "actions": {
+      "edit": "سمول",
+      "delete": "ړنګول"
+    },
+    "notifications": {
+      "created": "لګښت په بریالیتوب سره جوړ شو",
+      "createError": "د لګښت جوړولو کې پاتې راغی",
+      "updated": "لګښت په بریالیتوب سره تازه شو",
+      "updateError": "د لګښت تازهولو کې پاتې راغی",
+      "deleted": "لګښت په بریالیتوب سره ړنګ شو",
+      "deleteError": "د لګښت ړنګولو کې پاتې راغی"
+    },
+    "deleteConfirmTitle": "لګښت ړنګول؟",
+    "deleteConfirmDescription": "دا کار بېرته نه شوې کېږي."
   },
   "about": {
     "hero": {

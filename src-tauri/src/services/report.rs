@@ -131,6 +131,17 @@ impl ReportService {
         .fetch_one(pool)
         .await?;
 
+        let expenses_row: (f64, f64) = sqlx::query_as(
+            "SELECT
+               COALESCE(SUM(COALESCE(amount_afn, 0.0)), 0.0),
+               COALESCE(SUM(COALESCE(amount_usd, 0.0)), 0.0)
+             FROM expenses WHERE date(expense_date) >= ? AND date(expense_date) <= ?"
+        )
+        .bind(&start_date)
+        .bind(&end_date)
+        .fetch_one(pool)
+        .await?;
+
         // Daily trends using range-based queries
         let active_patients_rows: Vec<(String, f64)> = sqlx::query_as(
             "SELECT date(visit_date) as day_str, CAST(COUNT(DISTINCT patient_id) AS REAL) as val
@@ -170,6 +181,19 @@ impl ReportService {
         .fetch_all(pool)
         .await?;
         let revenue_trend = fill_range_daily_trends(start_dt, end_dt, revenue_rows);
+
+        let expenses_rows: Vec<(String, f64)> = sqlx::query_as(
+            "SELECT date(expense_date) as day_str, COALESCE(SUM(COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0)), 0.0) as val
+             FROM expenses
+             WHERE date(expense_date) >= ? AND date(expense_date) <= ?
+             GROUP BY date(expense_date)
+             ORDER BY day_str"
+        )
+        .bind(&start_date)
+        .bind(&end_date)
+        .fetch_all(pool)
+        .await?;
+        let expenses_trend = fill_range_daily_trends(start_dt, end_dt, expenses_rows);
 
         let outstanding_rows: Vec<(String, f64)> = sqlx::query_as(
             "SELECT date(issued_at) as day_str, COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) as val
@@ -224,6 +248,27 @@ impl ReportService {
         .fetch_one(pool)
         .await?;
 
+        let prev_expenses: f64 = sqlx::query_scalar(
+            "SELECT COALESCE(SUM(COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0)), 0.0) FROM expenses
+             WHERE date(expense_date) >= ? AND date(expense_date) <= ?"
+        )
+        .bind(&prev_start)
+        .bind(&prev_end)
+        .fetch_one(pool)
+        .await?;
+
+        let prev_expenses_row: (f64, f64) = sqlx::query_as(
+            "SELECT
+               COALESCE(SUM(COALESCE(amount_afn, 0.0)), 0.0),
+               COALESCE(SUM(COALESCE(amount_usd, 0.0)), 0.0)
+             FROM expenses
+             WHERE date(expense_date) >= ? AND date(expense_date) <= ?"
+        )
+        .bind(&prev_start)
+        .bind(&prev_end)
+        .fetch_one(pool)
+        .await?;
+
         let prev_outstanding: f64 = sqlx::query_scalar(
             "SELECT COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) FROM invoices
              WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?"
@@ -251,6 +296,9 @@ impl ReportService {
             revenue_this_month: revenue_row.0 + revenue_row.1,
             revenue_this_month_afn: revenue_row.0,
             revenue_this_month_usd: revenue_row.1,
+            expenses_this_month: expenses_row.0 + expenses_row.1,
+            expenses_this_month_afn: expenses_row.0,
+            expenses_this_month_usd: expenses_row.1,
             outstanding_balance: outstanding_balance_row.0 + outstanding_balance_row.1,
             outstanding_balance_afn: outstanding_balance_row.0,
             outstanding_balance_usd: outstanding_balance_row.1,
@@ -259,12 +307,16 @@ impl ReportService {
             active_patients_trend,
             visits_trend,
             revenue_trend,
+            expenses_trend,
             outstanding_trend,
             prev_active_patients,
             prev_total_visits,
             prev_revenue,
             prev_revenue_afn: prev_revenue_row.0,
             prev_revenue_usd: prev_revenue_row.1,
+            prev_expenses,
+            prev_expenses_afn: prev_expenses_row.0,
+            prev_expenses_usd: prev_expenses_row.1,
             prev_outstanding,
             prev_outstanding_afn: prev_outstanding_row.0,
             prev_outstanding_usd: prev_outstanding_row.1,
@@ -297,38 +349,99 @@ impl ReportService {
             }
         };
 
-        let rows: Vec<(String, f64, f64, f64)> = if filter.filter_type == "daily" || filter.filter_type == "weekly" || filter.filter_type == "custom" {
+        let rows: Vec<(String, f64, f64, f64, f64, f64, f64)> = if filter.filter_type == "daily" || filter.filter_type == "weekly" || filter.filter_type == "custom" {
             sqlx::query_as(
-                "SELECT date(issued_at) as month,
-                        COALESCE(SUM(COALESCE(paid_afn, 0.0) + COALESCE(paid_usd, 0.0)), 0.0) as revenue,
-                        COALESCE(SUM(COALESCE(paid_afn, 0.0)), 0.0) as revenue_afn,
-                        COALESCE(SUM(COALESCE(paid_usd, 0.0)), 0.0) as revenue_usd
-                 FROM invoices
-                 WHERE date(issued_at) >= ? AND date(issued_at) <= ?
-                 GROUP BY date(issued_at)
-                 ORDER BY month ASC"
+                "SELECT day as month,
+                        COALESCE(SUM(revenue), 0.0) as revenue,
+                        COALESCE(SUM(revenue_afn), 0.0) as revenue_afn,
+                        COALESCE(SUM(revenue_usd), 0.0) as revenue_usd,
+                        COALESCE(SUM(expenses), 0.0) as expenses,
+                        COALESCE(SUM(expenses_afn), 0.0) as expenses_afn,
+                        COALESCE(SUM(expenses_usd), 0.0) as expenses_usd
+                 FROM (
+                     SELECT date(issued_at) as day,
+                            COALESCE(paid_afn, 0.0) + COALESCE(paid_usd, 0.0) as revenue,
+                            COALESCE(paid_afn, 0.0) as revenue_afn,
+                            COALESCE(paid_usd, 0.0) as revenue_usd,
+                            0.0 as expenses,
+                            0.0 as expenses_afn,
+                            0.0 as expenses_usd
+                     FROM invoices
+                     WHERE date(issued_at) >= ? AND date(issued_at) <= ?
+                     UNION ALL
+                     SELECT date(expense_date) as day,
+                            0.0 as revenue,
+                            0.0 as revenue_afn,
+                            0.0 as revenue_usd,
+                            COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0) as expenses,
+                            COALESCE(amount_afn, 0.0) as expenses_afn,
+                            COALESCE(amount_usd, 0.0) as expenses_usd
+                     FROM expenses
+                     WHERE date(expense_date) >= ? AND date(expense_date) <= ?
+                 )
+                 GROUP BY day
+                 ORDER BY day ASC"
             )
+            .bind(&start_date)
+            .bind(&end_date)
             .bind(&start_date)
             .bind(&end_date)
             .fetch_all(pool)
             .await?
         } else {
             sqlx::query_as(
-                "SELECT strftime('%Y-%m', issued_at) as month,
-                        COALESCE(SUM(COALESCE(paid_afn, 0.0) + COALESCE(paid_usd, 0.0)), 0.0) as revenue,
-                        COALESCE(SUM(COALESCE(paid_afn, 0.0)), 0.0) as revenue_afn,
-                        COALESCE(SUM(COALESCE(paid_usd, 0.0)), 0.0) as revenue_usd
-                 FROM invoices
-                 WHERE date(issued_at) >= ? AND date(issued_at) <= ?
-                 GROUP BY strftime('%Y-%m', issued_at)
+                "SELECT strftime('%Y-%m', day) as month,
+                        COALESCE(SUM(revenue), 0.0) as revenue,
+                        COALESCE(SUM(revenue_afn), 0.0) as revenue_afn,
+                        COALESCE(SUM(revenue_usd), 0.0) as revenue_usd,
+                        COALESCE(SUM(expenses), 0.0) as expenses,
+                        COALESCE(SUM(expenses_afn), 0.0) as expenses_afn,
+                        COALESCE(SUM(expenses_usd), 0.0) as expenses_usd
+                 FROM (
+                     SELECT date(issued_at) as day,
+                            COALESCE(paid_afn, 0.0) + COALESCE(paid_usd, 0.0) as revenue,
+                            COALESCE(paid_afn, 0.0) as revenue_afn,
+                            COALESCE(paid_usd, 0.0) as revenue_usd,
+                            0.0 as expenses,
+                            0.0 as expenses_afn,
+                            0.0 as expenses_usd
+                     FROM invoices
+                     WHERE date(issued_at) >= ? AND date(issued_at) <= ?
+                     UNION ALL
+                     SELECT date(expense_date) as day,
+                            0.0 as revenue,
+                            0.0 as revenue_afn,
+                            0.0 as revenue_usd,
+                            COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0) as expenses,
+                            COALESCE(amount_afn, 0.0) as expenses_afn,
+                            COALESCE(amount_usd, 0.0) as expenses_usd
+                     FROM expenses
+                     WHERE date(expense_date) >= ? AND date(expense_date) <= ?
+                 )
+                 GROUP BY strftime('%Y-%m', day)
                  ORDER BY month ASC"
             )
+            .bind(&start_date)
+            .bind(&end_date)
             .bind(&start_date)
             .bind(&end_date)
             .fetch_all(pool)
             .await?
         };
 
-        Ok(rows.into_iter().map(|(month, revenue, revenue_afn, revenue_usd)| MonthlyRevenuePoint { month, revenue, revenue_afn, revenue_usd }).collect())
+        Ok(rows
+            .into_iter()
+            .map(
+                |(month, revenue, revenue_afn, revenue_usd, expenses, expenses_afn, expenses_usd)| MonthlyRevenuePoint {
+                    month,
+                    revenue,
+                    revenue_afn,
+                    revenue_usd,
+                    expenses,
+                    expenses_afn,
+                    expenses_usd,
+                },
+            )
+            .collect())
     }
 }

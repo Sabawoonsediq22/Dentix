@@ -75,6 +75,29 @@ impl DashboardService {
         .fetch_one(pool)
         .await?;
 
+        let daily_expenses_row: (f64, f64) = sqlx::query_as(
+            "SELECT
+               COALESCE(SUM(amount_afn), 0.0),
+               COALESCE(SUM(amount_usd), 0.0)
+             FROM expenses WHERE date(expense_date) = ?"
+        )
+        .bind(&today)
+        .fetch_one(pool)
+        .await?;
+
+        let yesterday_expenses_row: (f64, f64) = sqlx::query_as(
+            "SELECT
+               COALESCE(SUM(amount_afn), 0.0),
+               COALESCE(SUM(amount_usd), 0.0)
+             FROM expenses WHERE date(expense_date) = ?"
+        )
+        .bind(&yesterday)
+        .fetch_one(pool)
+        .await?;
+
+        let net_today_afn = daily_revenue_row.0 - daily_expenses_row.0;
+        let net_today_usd = daily_revenue_row.1 - daily_expenses_row.1;
+
         Ok(DashboardStats {
             daily_revenue: daily_revenue_row.0 + daily_revenue_row.1,
             daily_revenue_afn: daily_revenue_row.0,
@@ -90,6 +113,15 @@ impl DashboardService {
             yesterday_revenue_usd: yesterday_revenue_row.1,
             yesterday_patients,
             yesterday_procedures,
+            daily_expenses: daily_expenses_row.0 + daily_expenses_row.1,
+            daily_expenses_afn: daily_expenses_row.0,
+            daily_expenses_usd: daily_expenses_row.1,
+            yesterday_expenses: yesterday_expenses_row.0 + yesterday_expenses_row.1,
+            yesterday_expenses_afn: yesterday_expenses_row.0,
+            yesterday_expenses_usd: yesterday_expenses_row.1,
+            net_today: net_today_afn + net_today_usd,
+            net_today_afn,
+            net_today_usd,
         })
     }
 

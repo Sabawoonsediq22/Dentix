@@ -17,6 +17,12 @@ import type {
   InvoiceListParams,
   Payment,
   AddPaymentInput,
+  Expense,
+  ExpenseCategory,
+  ExpenseListParams,
+  ExpensePageResult,
+  CreateExpenseInput,
+  UpdateExpenseInput,
   MonthlyRevenuePoint,
   ReportSummary,
   ReportFilter,
@@ -154,6 +160,17 @@ export const api = {
   },
   payments: {
     add: (input: AddPaymentInput) => invoke<Payment>("add_payment", { input }),
+  },
+  expenses: {
+    list: (params: ExpenseListParams) =>
+      invoke<ExpensePageResult>("list_expenses", { params }),
+    get: (id: string) => invoke<Expense>("get_expense", { id }),
+    create: (input: CreateExpenseInput) =>
+      invoke<Expense>("create_expense", { input }),
+    update: (id: string, input: UpdateExpenseInput) =>
+      invoke<Expense>("update_expense", { id, input }),
+    delete: (id: string) => invoke<void>("delete_expense", { id }),
+    categories: () => invoke<ExpenseCategory[]>("list_expense_categories"),
   },
   procedures: {
     list: () => invoke<Procedure[]>("list_procedures"),

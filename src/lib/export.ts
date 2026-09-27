@@ -199,3 +199,41 @@ export async function exportTreatmentReport(format: ReportFormat): Promise<void>
     );
   }
 }
+
+export async function exportExpensesReport(format: ReportFormat): Promise<void> {
+  const result = await api.expenses.list({ page: 1, perPage: 10000 });
+  const expenses = result.items;
+
+  const headers = [
+    "Date",
+    "Category",
+    "Description",
+    "Amount (AFN)",
+    "Amount (USD)",
+    "Payment Method",
+    "Notes",
+    "Created At",
+  ];
+
+  const rows = expenses.map((e) => [
+    e.expense_date,
+    e.category_name,
+    e.description,
+    e.amount_afn.toFixed(2),
+    e.amount_usd.toFixed(2),
+    e.payment_method,
+    e.notes ?? "",
+    formatDate(e.created_at),
+  ]);
+
+  if (format === "csv") {
+    await generateCSV(headers, rows, `expenses_report_${dateStamp()}.csv`);
+  } else {
+    await generatePDF(
+      "Expense Report",
+      headers,
+      rows,
+      `expenses_report_${dateStamp()}.pdf`,
+    );
+  }
+}

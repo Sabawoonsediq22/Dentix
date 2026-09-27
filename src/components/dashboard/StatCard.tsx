@@ -3,7 +3,7 @@ import { cn } from "../../lib/utils";
 import { TrendingDownIcon, TrendingUpIcon } from "../../shared/icons/icons";
 import SparklineChart from "../charts/SparklineChart";
 
-export type CardAccent = "green" | "blue" | "orange" | "purple";
+export type CardAccent = "green" | "blue" | "orange" | "purple" | "red" | "teal";
 
 interface StatCardProps {
   title: string;
@@ -44,6 +44,18 @@ const accentConfig: Record<CardAccent, { border: string; bg: string; glow: strin
     bg: "from-purple-500/[0.03] to-transparent dark:from-purple-500/[0.06]",
     glow: "group-hover:shadow-purple-500/8",
     sparkline: "#a855f7",
+  },
+  red: {
+    border: "border-t-red-500",
+    bg: "from-red-500/[0.03] to-transparent dark:from-red-500/[0.06]",
+    glow: "group-hover:shadow-red-500/8",
+    sparkline: "#ef4444",
+  },
+  teal: {
+    border: "border-t-teal-600",
+    bg: "from-teal-600/[0.03] to-transparent dark:from-teal-600/[0.06]",
+    glow: "group-hover:shadow-teal-600/8",
+    sparkline: "#0d9488",
   },
 };
 
