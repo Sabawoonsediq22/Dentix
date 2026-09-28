@@ -40,7 +40,6 @@
     "weekly": "اونیز",
     "monthly": "میاشتنی",
     "financeDistribution": "مالي وضعیت",
-    "netProfitFormula": "خالص فایده = عاید - لګښتونه",
     "recentPatients": "وروستي ناروغان",
     "viewAllPatients": "ټول ناروغان وګورئ",
     "notifications": {
@@ -414,7 +413,7 @@
       "patients": "د ناروغانو رپورټ",
       "patientsDesc": "د ناروغانو ریکارډونه او احصایې صادر کړئ",
       "financial": "مالي رپورټ",
-      "financialDesc": "فاکتورونه او د تادیاتو تاریخ صادر کړئ",
+      "financialDesc": "د عایداتو، لګښتونو او پروفيټ مختصر رپورټ",
       "treatment": "د درملنې رپورټ",
       "treatmentDesc": "د درملنې تاریخ او پروسیجرونه صادر کړئ",
       "expenses": "د لګښتونو رپورټ",

@@ -5,7 +5,7 @@ import { useReportSummary, useMonthlyRevenue } from "../hooks/useReports";
 import Chart from "react-apexcharts";
 import { PatientIcon, ToothIcon, DownloadIcon, FileIcon, CurrencyIcon } from "../shared/icons/icons";
 import type { MonthlyRevenuePoint, ReportFilter } from "../types/ApiTypes";
-import { exportPatientsReport, exportFinancialReport, exportTreatmentReport, exportExpensesReport } from "../lib/export";
+import { exportPatientsReport, exportFinancialReport, exportTreatmentReport, exportExpensesReport, describeReportPeriod } from "../lib/export";
 import type { ReportFormat } from "../lib/export";
 import { toast } from "../lib/toast-utils";
 
@@ -235,10 +235,13 @@ const Reports: React.FC = () => {
           ]
         : [];
 
-  const handleExport = async (type: string, fn: (format: ReportFormat) => Promise<void>) => {
+  const handleExport = async (
+    type: string,
+    fn: (format: ReportFormat, filter: ReportFilter) => Promise<void>,
+  ) => {
     setExporting(type);
     try {
-      await fn(format);
+      await fn(format, reportFilter);
       toast.success({ title: t("reports.export.success", "Report exported successfully") });
     } catch (err) {
       toast.error({ title: t("reports.export.error", "Failed to export report"), description: String(err) });
@@ -333,8 +336,8 @@ const Reports: React.FC = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+        <Card className="col-span-7">
           <CardHeader>
             <CardTitle className="text-base sm:text-lg font-semibold">
               {t("reports.charts.revenueExpenseTrend", "Revenue vs Expenses")}
@@ -469,28 +472,10 @@ const Reports: React.FC = () => {
                 height="100%"
               />
             </div>
-            <div className="mt-2 flex items-center justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0d9488]" />
-                {t("reports.charts.revenueAfn", "Revenue AFN")}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#60a5fa]" />
-                {t("reports.charts.revenueUsd", "Revenue USD")}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#ef4444]" />
-                {t("reports.charts.expensesAfn", "Expenses AFN")}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#f59e0b]" />
-                {t("reports.charts.expensesUsd", "Expenses USD")}
-              </span>
-            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="col-span-5">
           <CardHeader>
             <CardTitle className="text-base sm:text-lg font-semibold">
               {t("reports.charts.visitDistribution", "Visit Distribution")}
@@ -572,9 +557,14 @@ const Reports: React.FC = () => {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base sm:text-lg font-semibold">
-              {t("reports.export.title", "Export Reports")}
-            </CardTitle>
+            <div>
+              <CardTitle className="text-base sm:text-lg font-semibold">
+                {t("reports.export.title", "Export Reports")}
+              </CardTitle>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {t("reports.filter.period", "Period")}: {describeReportPeriod(reportFilter)}
+              </p>
+            </div>
             <div className="flex items-center gap-2 self-start">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                 {t("reports.export.format", "Format:")}
@@ -639,7 +629,7 @@ const Reports: React.FC = () => {
                 {t("reports.export.financial", "Financial Report")}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {t("reports.export.financialDesc", "Export invoices and payment history")}
+                {t("reports.export.financialDesc", "Revenue, expenses and profit summary")}
               </span>
             </button>
             <button

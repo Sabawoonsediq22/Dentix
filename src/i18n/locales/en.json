@@ -40,7 +40,6 @@
     "weekly": "Weekly",
     "monthly": "Monthly",
     "financeDistribution": "Finance Overview",
-    "netProfitFormula": "Net Profit = Revenue - Expenses",
     "recentPatients": "Recent Patients",
     "viewAllPatients": "View All Patients",
     "notifications": {
@@ -415,7 +414,7 @@
       "patients": "Patient Report",
       "patientsDesc": "Export patient records and statistics",
       "financial": "Financial Report",
-      "financialDesc": "Export invoices and payment history",
+      "financialDesc": "Revenue, expenses and profit summary",
       "treatment": "Treatment Report",
       "treatmentDesc": "Export treatment history and procedures",
       "expenses": "Expense Report",

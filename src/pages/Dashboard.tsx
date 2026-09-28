@@ -569,15 +569,34 @@ const Dashboard: React.FC = () => {
               )}
             </div>
             {financeSummary && financeSlices.length > 0 && (
-              <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-2.5 text-center">
-                <div className="text-[11px] text-gray-500 dark:text-gray-400">
-                  {t("dashboard.netProfitFormula", "Net Profit = Revenue - Expenses")}
-                </div>
-                <div dir="ltr" className="mt-1 text-xs font-semibold text-gray-900 dark:text-white">
-                  {formatAFN(financeSummary.revenue_this_month_afn)} - {formatAFN(financeSummary.expenses_this_month_afn)} ={" "}
-                  <span className={netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                    {formatAFN(netProfit)}
-                  </span>
+              <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-2.5">
+                <div dir="ltr" className="flex items-end justify-center gap-1 sm:gap-2">
+                  <div className="text-center">
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                      {t("reports.stats.revenue", "Revenue")}
+                    </div>
+                    <div className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">
+                      {formatAFN(financeSummary.revenue_this_month_afn)}
+                    </div>
+                  </div>
+                  <span className="pb-0.5 text-xs font-medium text-gray-400 dark:text-gray-500">-</span>
+                  <div className="text-center">
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                      {t("reports.stats.expenses", "Expenses")}
+                    </div>
+                    <div className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">
+                      {formatAFN(financeSummary.expenses_this_month_afn)}
+                    </div>
+                  </div>
+                  <span className="pb-0.5 text-xs font-medium text-gray-400 dark:text-gray-500">=</span>
+                  <div className="text-center">
+                    <div className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">
+                      {t("reports.stats.netProfit", "Net Profit")}
+                    </div>
+                    <div className={`mt-0.5 text-xs font-bold ${netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                      {formatAFN(netProfit)}
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
