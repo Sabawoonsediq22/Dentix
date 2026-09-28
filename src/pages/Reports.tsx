@@ -3,12 +3,11 @@ import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardHeader, CardTitle, LoadingSpinner, DatePicker, Button } from "../components/ui";
 import { useReportSummary, useMonthlyRevenue } from "../hooks/useReports";
 import Chart from "react-apexcharts";
-import { PatientIcon, ToothIcon, DownloadIcon, FileIcon } from "../shared/icons/icons";
-import type { MonthlyRevenuePoint, DailyTrendPoint, ReportFilter } from "../types/ApiTypes";
-import { exportPatientsReport, exportFinancialReport, exportTreatmentReport } from "../lib/export";
+import { PatientIcon, ToothIcon, DownloadIcon, FileIcon, CurrencyIcon } from "../shared/icons/icons";
+import type { MonthlyRevenuePoint, ReportFilter } from "../types/ApiTypes";
+import { exportPatientsReport, exportFinancialReport, exportTreatmentReport, exportExpensesReport, describeReportPeriod } from "../lib/export";
 import type { ReportFormat } from "../lib/export";
 import { toast } from "../lib/toast-utils";
-import SparklineChart from "../components/charts/SparklineChart";
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -38,15 +37,14 @@ interface StatCardProps {
   title: string;
   value: string;
   valueUsd?: string;
-  trendData?: DailyTrendPoint[];
-  trendColor?: string;
   change?: {
     value: string;
     positive?: boolean;
+    direction?: "up" | "down";
   };
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, valueUsd, trendData, trendColor = "#0d9488", change }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, valueUsd, change }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow dark:border-gray-700 dark:bg-gray-800 flex flex-col">
     <div className="flex items-start justify-between">
       <div className="min-w-0 flex-1">
@@ -70,19 +68,14 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, valueUsd, trendData, 
                   ? "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10"
                   : "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10"
             }`}>
-              {change.positive === true && "↑"}
-              {change.positive === false && "↓"}
+              {change.positive !== undefined &&
+                ((change.direction ?? (change.positive ? "up" : "down")) === "up" ? "↑" : "↓")}
               {change.value}
             </span>
           </div>
         )}
       </div>
     </div>
-    {trendData && (
-      <div className="mt-3 -mx-1">
-        <SparklineChart data={trendData} color={trendColor} height={50} />
-      </div>
-    )}
   </div>
 );
 
@@ -91,6 +84,8 @@ const formatAFN = (val: number) =>
 
 const formatUSD = (val: number) =>
   "$" + val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const formatUSDOptional = (val: number) => (val === 0 ? undefined : formatUSD(val));
 
 const formatMonth = (monthStr: string) => {
   const parts = monthStr.split("-");
@@ -132,14 +127,10 @@ const Reports: React.FC = () => {
   const statCards = useMemo(() => {
     if (!summary) return [];
 
-    const sumTrend = (data: DailyTrendPoint[]) =>
-      data.reduce((acc, d) => acc + d.value, 0);
-
-    const currentVisits = sumTrend(summary.visits_trend);
-    const currentRevenue = sumTrend(summary.revenue_trend);
-    const currentOutstanding = sumTrend(summary.outstanding_trend);
-
-    const pct = (cur: number, prev: number): { value: string; positive: boolean } | undefined => {
+    const pct = (
+      cur: number,
+      prev: number,
+    ): { value: string; positive: boolean; direction: "up" | "down" } | undefined => {
       if (prev <= 0) return undefined;
       const change = ((cur - prev) / prev) * 100;
       const periodLabel = filterType === "daily"
@@ -152,39 +143,51 @@ const Reports: React.FC = () => {
       return {
         value: `${Math.abs(change).toFixed(1)}% ${periodLabel}`,
         positive: change >= 0,
+        direction: change >= 0 ? "up" : "down",
       };
     };
+
+    const lowerIsBetter = (
+      c: { value: string; positive: boolean; direction: "up" | "down" } | undefined,
+    ) => (c ? { ...c, positive: !c.positive } : undefined);
+
+    const currentNetAfn = summary.revenue_this_month_afn - summary.expenses_this_month_afn;
+    const prevNetAfn = summary.prev_revenue_afn - summary.prev_expenses_afn;
 
     return [
       {
         title: t("reports.stats.activePatients", "Active Patients"),
         value: String(summary.active_patients),
-        trendData: summary.active_patients_trend,
-        trendColor: "#3b82f6",
         change: pct(summary.active_patients, summary.prev_active_patients),
       },
       {
         title: t("reports.stats.totalVisits", "Total Visits"),
         value: String(summary.total_visits_this_month),
-        trendData: summary.visits_trend,
-        trendColor: "#0d9488",
-        change: pct(currentVisits, summary.prev_total_visits),
+        change: pct(summary.total_visits_this_month, summary.prev_total_visits),
       },
       {
         title: t("reports.stats.revenue", "Revenue"),
         value: formatAFN(summary.revenue_this_month_afn),
-        valueUsd: formatUSD(summary.revenue_this_month_usd),
-        trendData: summary.revenue_trend,
-        trendColor: "#22c55e",
-        change: pct(currentRevenue, summary.prev_revenue),
+        valueUsd: formatUSDOptional(summary.revenue_this_month_usd),
+        change: pct(summary.revenue_this_month_afn, summary.prev_revenue_afn),
+      },
+      {
+        title: t("reports.stats.expenses", "Expenses"),
+        value: formatAFN(summary.expenses_this_month_afn),
+        valueUsd: formatUSDOptional(summary.expenses_this_month_usd),
+        change: lowerIsBetter(pct(summary.expenses_this_month_afn, summary.prev_expenses_afn)),
+      },
+      {
+        title: t("reports.stats.netProfit", "Net Profit"),
+        value: formatAFN(currentNetAfn),
+        valueUsd: formatUSDOptional(summary.revenue_this_month_usd - summary.expenses_this_month_usd),
+        change: pct(currentNetAfn, prevNetAfn),
       },
       {
         title: t("reports.stats.outstanding", "Outstanding"),
         value: formatAFN(summary.outstanding_balance_afn),
-        valueUsd: formatUSD(summary.outstanding_balance_usd),
-        trendData: summary.outstanding_trend,
-        trendColor: "#f59e0b",
-        change: pct(currentOutstanding, summary.prev_outstanding),
+        valueUsd: formatUSDOptional(summary.outstanding_balance_usd),
+        change: lowerIsBetter(pct(summary.outstanding_balance_afn, summary.prev_outstanding_afn)),
       },
     ];
   }, [summary, t, filterType]);
@@ -222,6 +225,9 @@ const Reports: React.FC = () => {
               revenue: summary.revenue_this_month,
               revenue_afn: summary.revenue_this_month_afn,
               revenue_usd: summary.revenue_this_month_usd,
+              expenses: summary.expenses_this_month,
+              expenses_afn: summary.expenses_this_month_afn,
+              expenses_usd: summary.expenses_this_month_usd,
               revenueAfn: summary.revenue_this_month_afn,
               revenueUsd: summary.revenue_this_month_usd,
               monthLabel: formatMonth(new Date().toISOString().slice(0, 7)),
@@ -229,10 +235,13 @@ const Reports: React.FC = () => {
           ]
         : [];
 
-  const handleExport = async (type: string, fn: (format: ReportFormat) => Promise<void>) => {
+  const handleExport = async (
+    type: string,
+    fn: (format: ReportFormat, filter: ReportFilter) => Promise<void>,
+  ) => {
     setExporting(type);
     try {
-      await fn(format);
+      await fn(format, reportFilter);
       toast.success({ title: t("reports.export.success", "Report exported successfully") });
     } catch (err) {
       toast.error({ title: t("reports.export.error", "Failed to export report"), description: String(err) });
@@ -321,17 +330,17 @@ const Reports: React.FC = () => {
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-6">
         {statCards.map((card, idx) => (
           <StatCard key={idx} {...card} />
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <Card>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6">
+        <Card className="col-span-7">
           <CardHeader>
             <CardTitle className="text-base sm:text-lg font-semibold">
-              {t("reports.charts.revenueTrend", "Revenue Trend")}
+              {t("reports.charts.revenueExpenseTrend", "Revenue vs Expenses")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -372,7 +381,7 @@ const Reports: React.FC = () => {
                     yaxis: { lines: { show: true } },
                     padding: { top: 10, right: 10, bottom: 0, left: 10 },
                   },
-                  colors: ["#0d9488", "#60a5fa"],
+                  colors: ["#0d9488", "#60a5fa", "#ef4444", "#f59e0b"],
                   fill: {
                     type: "gradient",
                     gradient: {
@@ -438,7 +447,7 @@ const Reports: React.FC = () => {
                     x: { show: false },
                     y: {
                       formatter: (val: number, opts: any) => {
-                        return opts.seriesIndex === 0 ? formatAFN(val) : formatUSD(val);
+                        return opts.seriesIndex % 2 === 0 ? formatAFN(val) : formatUSD(val);
                       },
                     },
                   },
@@ -454,27 +463,19 @@ const Reports: React.FC = () => {
                   ],
                 }}
                 series={[
-                  { name: "AFN", data: chartData.map((d) => d.revenueAfn) },
-                  { name: "USD", data: chartData.map((d) => d.revenueUsd) },
+                  { name: t("reports.charts.revenueAfn", "Revenue AFN"), data: chartData.map((d) => d.revenueAfn) },
+                  { name: t("reports.charts.revenueUsd", "Revenue USD"), data: chartData.map((d) => d.revenueUsd) },
+                  { name: t("reports.charts.expensesAfn", "Expenses AFN"), data: chartData.map((d) => d.expenses_afn) },
+                  { name: t("reports.charts.expensesUsd", "Expenses USD"), data: chartData.map((d) => d.expenses_usd) },
                 ]}
                 type="bar"
                 height="100%"
               />
             </div>
-            <div className="mt-2 flex items-center justify-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#0d9488]" />
-                AFN
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#3b82f6]" />
-                USD
-              </span>
-            </div>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="col-span-5">
           <CardHeader>
             <CardTitle className="text-base sm:text-lg font-semibold">
               {t("reports.charts.visitDistribution", "Visit Distribution")}
@@ -556,9 +557,14 @@ const Reports: React.FC = () => {
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <CardTitle className="text-base sm:text-lg font-semibold">
-              {t("reports.export.title", "Export Reports")}
-            </CardTitle>
+            <div>
+              <CardTitle className="text-base sm:text-lg font-semibold">
+                {t("reports.export.title", "Export Reports")}
+              </CardTitle>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {t("reports.filter.period", "Period")}: {describeReportPeriod(reportFilter)}
+              </p>
+            </div>
             <div className="flex items-center gap-2 self-start">
               <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
                 {t("reports.export.format", "Format:")}
@@ -591,7 +597,7 @@ const Reports: React.FC = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             <button
               className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed "
               onClick={() => handleExport("patients", exportPatientsReport)}
@@ -623,7 +629,7 @@ const Reports: React.FC = () => {
                 {t("reports.export.financial", "Financial Report")}
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                {t("reports.export.financialDesc", "Export invoices and payment history")}
+                {t("reports.export.financialDesc", "Revenue, expenses and profit summary")}
               </span>
             </button>
             <button
@@ -641,6 +647,23 @@ const Reports: React.FC = () => {
               </span>
               <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                 {t("reports.export.treatmentDesc", "Export treatment history and procedures")}
+              </span>
+            </button>
+            <button
+              className="flex flex-col items-center justify-center p-6 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={() => handleExport("expenses", exportExpensesReport)}
+              disabled={exporting !== null}
+            >
+              {exporting === "expenses" ? (
+                <LoadingSpinner size="md" />
+              ) : (
+                <CurrencyIcon size="md" className="mb-3 text-primary" />
+              )}
+              <span className="text-sm font-medium text-gray-900 dark:text-white">
+                {t("reports.export.expenses", "Expense Report")}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                {t("reports.export.expensesDesc", "Export clinic expense records")}
               </span>
             </button>
           </div>

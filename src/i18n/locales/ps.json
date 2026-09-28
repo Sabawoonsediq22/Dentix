@@ -3,10 +3,11 @@
     "dashboard": "ډشبورډ",
     "patients": "ناروغان",
     "visits": "ټولې لیدنې",
-    "billings": "بلینګ",
+    "billings": "بیلونه",
+    "expenses": "لګښتونه",
     "reports": "رپورټونه",
     "about": "زموږ په اړه",
-    "settings": "ترتیبات",
+    "settings": "تنظیمات",
     "newPatient": "نوی ناروغ ثبتول"
   },
   "dashboard": {
@@ -25,16 +26,20 @@
     "clickToChangeStatus": "د حالت بدلولو لپاره کلیک وکړئ",
     "stats": {
       "dailyRevenue": "ورځنی عاید",
-      "patientsToday": "نن ورځ ناروغان",
+      "patientsToday": "نن ناروغان",
       "outstandingBalance": "پاتې بیلانس",
-      "proceduresPerformed": "ترسره شوي درملنې"
+      "proceduresPerformed": "تکمیل شوې پروسیجرونه",
+      "dailyExpenses": "ورځنې لګښتونه",
+      "netToday": "د نن خالص فایده",
+      "netContext": "عایدات منفي لګښتونه",
+      "todayContext": "نن"
     },
     "patientsFlow": "د ناروغانو جریان",
     "visits": "لیدنې",
     "daily": "ورځنی",
     "weekly": "اونیز",
     "monthly": "میاشتنی",
-    "procedureDistribution": "د درملنو وېش",
+    "financeDistribution": "مالي وضعیت",
     "recentPatients": "وروستي ناروغان",
     "viewAllPatients": "ټول ناروغان وګورئ",
     "notifications": {
@@ -51,16 +56,15 @@
       "status": "حالت"
     },
     "noRecentPatients": "هیڅ وروستي ناروغان نشته",
-    "todayAppointments": "د نن نوبتونه",
-    "thisMonth": "دغه میاشت"
+    "todayAppointments": "د نن نوبتونه"
   },
   "settings": {
     "language": "ژبه",
-    "description": "د غوښتنلیک ترتیبات تنظیم کړئ.",
-    "title": "ترتیبات او بیک اپ",
+    "description": "د غوښتنلیک تنظیمات تنظیم کړئ.",
+    "title": "تنظیمات او بیک اپ",
     "subtitle": "د کلینیک معلومات تنظیم کړئ، د بیک اپ غوره توبونه اداره کړئ، او د سیسټم احصایې وګورئ.",
     "saveChanges": "بدلونونه خوندي کړئ",
-    "changesSaved": "ترتیبات په بریالیتوب سره خوندي شول",
+    "changesSaved": "تنظیمات په بریالیتوب سره خوندي شول",
     "saveError": "د ترتیباتو خوندي کول ناکام شول",
     "clinicInfo": "د کلینیک تنظیمات",
     "clinicInfoDesc": "د کلینیک نوم، اړیکې او برانډینګ شتمنۍ اداره کړئ.",
@@ -226,8 +230,8 @@
     "notifications": {
       "xrayError": "د ایکس-ری پورته کول ناکام شول"
     },
-    "billing": "بلینګ",
-    "billingSummary": "د بلینګ لنډیز",
+    "billing": "بیلونه",
+    "billingSummary": "د بیلونه لنډیز",
     "molar": "مولر",
     "numberOfProcedures": "د درملنو شمېره",
     "totalNumberOfProcedures": "د درملنو ټولټال شمېره",
@@ -268,8 +272,8 @@
     "dragAndDrop": "کلیک وکړئ یا کش او ډراپ کړئ",
     "or": "یا",
     "remove": "لرې کول",
-    "billing": "بلینګ",
-    "billingSummary": "د بلینګ لنډیز",
+    "billing": "بیلونه",
+    "billingSummary": "د بیلونه لنډیز",
     "discount": "تخفیف",
     "discountPlaceholder": "تخفیف دننه کړئ",
     "paidAmount": "ورکړل شوې پیسه",
@@ -307,6 +311,7 @@
     "delete": "ډیلیټول",
     "deleting": "ډیلیټینګ...",
     "edit": "تغیرول",
+    "save": "خوندي کړئ",
     "back": "بیرته",
     "backToPatients": "بیرته ناروغانو ته",
     "goToDashboard": "ډشبورډ ته وټو"
@@ -317,10 +322,11 @@
     "goHome": "بیرته ډشبورډ ته"
   },
   "breadcrumbs": {
-    "invoices": "فوټونه",
+    "invoices": "فاکتورونه",
     "receipts": "رسیدونه",
     "payments": "تادیې",
-    "treatments": "درملنې"
+    "treatments": "درملنې",
+    "expenses": "لګښتونه"
   },
   "pagination": {
     "showing": "له {{start}} څخه تر {{end}} پورې له {{total}} څخه",
@@ -364,6 +370,8 @@
       "activePatients": "فعال ناروغان",
       "totalVisits": "ټولې لیدنې",
       "revenue": "عاید",
+      "expenses": "لګښتونه",
+      "netProfit": "د خالص فایده",
       "outstanding": "پاتې بیلانس"
     },
     "trend": {
@@ -377,6 +385,11 @@
     },
     "charts": {
       "revenueTrend": "د عاید رجحان",
+      "revenueExpenseTrend": "عاید او لګښت",
+      "revenueAfn": "عاید AFN",
+      "revenueUsd": "عاید USD",
+      "expensesAfn": "لګښت AFN",
+      "expensesUsd": "لګښت USD",
       "visitDistribution": "د لیدنو وېش",
       "count": "شمېره",
       "revenue": "عاید"
@@ -400,9 +413,11 @@
       "patients": "د ناروغانو رپورټ",
       "patientsDesc": "د ناروغانو ریکارډونه او احصایې صادر کړئ",
       "financial": "مالي رپورټ",
-      "financialDesc": "فاکتورونه او د تادیاتو تاریخ صادر کړئ",
+      "financialDesc": "د عایداتو، لګښتونو او پروفيټ مختصر رپورټ",
       "treatment": "د درملنې رپورټ",
-      "treatmentDesc": "د درملنې تاریخ او پروسیجرونه صادر کړئ"
+      "treatmentDesc": "د درملنې تاریخ او پروسیجرونه صادر کړئ",
+      "expenses": "د لګښتونو رپورټ",
+      "expensesDesc": "د کلینیک د لګښتونو ریکارډونه صادر کړئ"
     },
     "filter": {
       "period": "وخت وټاکئ",
@@ -421,7 +436,7 @@
     }
   },
   "billing": {
-    "title": "بلینګ",
+    "title": "بیلونه",
     "description": "د ټولو ناروغانو د لیدنو فاکتورونه، تادیات او رسیدونه اداره کړئ.",
     "searchPlaceholder": "د فاکتور شمېره، د ناروغ نوم یا تلیفون له مخې وپلټئ...",
     "loadingInvoices": "فاکتورونه بارېږي...",
@@ -481,6 +496,78 @@
     },
     "currency": "افغانۍ"
   },
+  "expenses": {
+    "title": "د کلینیک لګښتونه",
+    "description": "ټول د کلینیک لګښتونه تعقب او اداره کړئ.",
+    "addExpense": "لګښت زیاتول",
+    "newExpense": "نوی لګښت",
+    "editExpense": "لګښت سمول",
+    "searchPlaceholder": "د تشریح، ویشیایا یادښتونو له مخې وپلټئ...",
+    "loading": "لګښتونه بارېږي...",
+    "errorLoading": "د لګښتونو په بارولو کې تېروتنه",
+    "stats": {
+      "totalExpenses": "ټولې لګښتونه",
+      "totalSpent": "ټوله لګښت"
+    },
+    "filters": {
+      "category": "ویش",
+      "allCategories": "ټولې ویشې",
+      "from": "له",
+      "to": "تر",
+      "clearDates": "نېټې پاکول"
+    },
+    "methods": {
+      "cash": "نقد",
+      "card": "کارت",
+      "mobile": "موبایل",
+      "insurance": "بیمه"
+    },
+    "table": {
+      "no": "شمېره",
+      "date": "نیټه",
+      "category": "ویش",
+      "description": "تشریح",
+      "amount": "اندازه",
+      "method": "طریقه",
+      "actions": "کړنې",
+      "dateLabel": "نیټه:",
+      "methodLabel": "طریقه:",
+      "empty": "د ستاسو معیار سره سم لګښتونه ونه موندل شول."
+    },
+    "form": {
+      "category": "ویش",
+      "selectCategory": "ویش وټاکئ",
+      "description": "تشریح",
+      "descriptionPlaceholder": "لکه: د میاشتنۍ کرایې تادیه",
+      "date": "نیټه",
+      "amounts": "اندازې",
+      "paymentMethod": "د تادیې طریقه",
+      "notes": "یادښتونه",
+      "notesPlaceholder": "نور توضیحات",
+      "add": "زیاتول"
+    },
+    "errors": {
+      "categoryRequired": "لطفاً ویش وټاکئ",
+      "descriptionRequired": "تشریح اړین دی",
+      "dateRequired": "د لګښت نیټه اړینه ده",
+      "negativeAmount": "اندازې منفي نه کېږي",
+      "amountRequired": "په افغانۍ یا ډالر کې اندازه وليکئ"
+    },
+    "actions": {
+      "edit": "سمول",
+      "delete": "ړنګول"
+    },
+    "notifications": {
+      "created": "لګښت په بریالیتوب سره جوړ شو",
+      "createError": "د لګښت جوړولو کې پاتې راغی",
+      "updated": "لګښت په بریالیتوب سره تازه شو",
+      "updateError": "د لګښت تازهولو کې پاتې راغی",
+      "deleted": "لګښت په بریالیتوب سره ړنګ شو",
+      "deleteError": "د لګښت ړنګولو کې پاتې راغی"
+    },
+    "deleteConfirmTitle": "لګښت ړنګول؟",
+    "deleteConfirmDescription": "دا کار بېرته نه شوې کېږي."
+  },
   "about": {
     "hero": {
       "badge": "د پارسا ټکنالوژۍ په اړه",
@@ -519,7 +606,7 @@
       "title": "زموږ خدمات",
       "dentalManagement": {
         "title": "د غاښونو مدیریت",
-        "desc": "د کلینیک بشپړ عملیات: ناروغان، بلینګ او ریکارډونه."
+        "desc": "د کلینیک بشپړ عملیات: ناروغان، بیلونه او ریکارډونه."
       },
       "customSoftware": {
         "title": "سفارشي سافټویر",
@@ -614,7 +701,7 @@
     "collapse": "پراخول",
     "expand": "پراخول",
     "procedureNote": "د درملنې یادښت",
-    "billingDetails": "د بلینګ جزییات",
+    "billingDetails": "د بیلونه جزییات",
     "quantity": "شمار",
     "unitPrice": "د واحد نرخ",
     "xrayImages": "ایکس-ری انځورونه",
@@ -700,7 +787,7 @@
     "targetLocal": "یوازې محلي",
     "targetGdrive": "یوازې ګوګل ډرایو",
     "targetBoth": "محلي + ګوګل ډرایو",
-    "saveSettings": "ترتیبات خوندي کړئ",
+    "saveSettings": "تنظیمات خوندي کړئ",
     "manualBackup": "لاسي بیک اپ",
     "backupNowLocal": "اوس بیک اپ واخلئ (محلي)",
     "backupNowGdrive": "اوس بیک اپ واخلئ (ګوګل ډرایو)",
@@ -709,8 +796,8 @@
     "noLastBackup": "تر اوسه بیک اپ نشته",
     "googleDrive": "ګوګل ډرایو",
     "save": "خوندي کړئ",
-    "settingsSaved": "د اتومات بیک اپ ترتیبات خوندي شول",
-    "saveError": "د بیک اپ ترتیباتو خوندي کول ناکام شول",
+    "settingsSaved": "د اتومات بیک اپ تنظیمات خوندي شول",
+    "saveError": "د بیک اپ تنظیمات خوندي کول ناکام شول",
     "autoBackupConfig": "اتومات بیک اپ تنظیم کړئ",
     "autoBackupConfigDesc": "د اتومات بیک اپ لپاره تکرار او هدف وټاکئ.",
     "connectGdrive": "ګوګل ډرایو سره وصل شئ",

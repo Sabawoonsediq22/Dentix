@@ -1,49 +1,53 @@
 import React from "react";
 import { cn } from "../../lib/utils";
 import { TrendingDownIcon, TrendingUpIcon } from "../../shared/icons/icons";
-import SparklineChart from "../charts/SparklineChart";
 
-export type CardAccent = "green" | "blue" | "orange" | "purple";
+export type CardAccent = "green" | "blue" | "orange" | "purple" | "red" | "teal";
 
 interface StatCardProps {
   title: string;
   value: string;
   accent: CardAccent;
   badge?: React.ReactNode;
-  trend?: { value: string; positive: boolean };
+  trend?: { value: string; positive: boolean; direction?: "up" | "down" };
   loading?: boolean;
   secondary?: string;
   secondaryValue?: string;
   context?: string;
-  sparklineData?: { day: string; value: number }[];
   className?: string;
   onClick?: () => void;
 }
 
-const accentConfig: Record<CardAccent, { border: string; bg: string; glow: string; sparkline: string }> = {
+const accentConfig: Record<CardAccent, { border: string; bg: string; glow: string }> = {
   green: {
     border: "border-t-emerald-500",
     bg: "from-emerald-500/[0.03] to-transparent dark:from-emerald-500/[0.06]",
     glow: "group-hover:shadow-emerald-500/8",
-    sparkline: "#10b981",
   },
   blue: {
     border: "border-t-blue-500",
     bg: "from-blue-500/[0.03] to-transparent dark:from-blue-500/[0.06]",
     glow: "group-hover:shadow-blue-500/8",
-    sparkline: "#3b82f6",
   },
   orange: {
     border: "border-t-orange-500",
     bg: "from-orange-500/[0.03] to-transparent dark:from-orange-500/[0.06]",
     glow: "group-hover:shadow-orange-500/8",
-    sparkline: "#f97316",
   },
   purple: {
     border: "border-t-purple-500",
     bg: "from-purple-500/[0.03] to-transparent dark:from-purple-500/[0.06]",
     glow: "group-hover:shadow-purple-500/8",
-    sparkline: "#a855f7",
+  },
+  red: {
+    border: "border-t-red-500",
+    bg: "from-red-500/[0.03] to-transparent dark:from-red-500/[0.06]",
+    glow: "group-hover:shadow-red-500/8",
+  },
+  teal: {
+    border: "border-t-teal-600",
+    bg: "from-teal-600/[0.03] to-transparent dark:from-teal-600/[0.06]",
+    glow: "group-hover:shadow-teal-600/8",
   },
 };
 
@@ -57,7 +61,6 @@ const StatCard: React.FC<StatCardProps> = ({
   secondary,
   secondaryValue,
   context,
-  sparklineData,
   className,
   onClick,
 }) => {
@@ -124,7 +127,7 @@ const StatCard: React.FC<StatCardProps> = ({
                       : "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10"
                   )}
                 >
-                  {trend.positive ? (
+                  {(trend.direction ?? (trend.positive ? "up" : "down")) === "up" ? (
                     <TrendingUpIcon size="xs" />
                   ) : (
                     <TrendingDownIcon size="xs" />
@@ -140,23 +143,8 @@ const StatCard: React.FC<StatCardProps> = ({
             </div>
           </div>
 
+          {badge && !loading && <div className="shrink-0">{badge}</div>}
         </div>
-
-        {sparklineData && sparklineData.length > 0 && !loading && (
-          <div className="mt-3 -mx-1">
-            <SparklineChart
-              data={sparklineData}
-              color={config.sparkline}
-              height={44}
-            />
-          </div>
-        )}
-
-        {badge && !loading && (
-          <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
-            {badge}
-          </div>
-        )}
       </div>
     </div>
   );

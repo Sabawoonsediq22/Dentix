@@ -275,6 +275,61 @@ async fn get_invoice_payments(
         .map_err(|e| e.to_string())
 }
 
+// Expense commands
+#[tauri::command]
+async fn list_expenses(
+    state: State<'_, AppState>,
+    params: ExpenseListParams,
+) -> Result<ExpensePageResult, String> {
+    ExpenseService::list(&state.db, params)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn get_expense(state: State<'_, AppState>, id: String) -> Result<Expense, String> {
+    ExpenseService::find(&state.db, &id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn create_expense(
+    state: State<'_, AppState>,
+    input: CreateExpenseInput,
+) -> Result<Expense, String> {
+    ExpenseService::create(&state.db, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn update_expense(
+    state: State<'_, AppState>,
+    id: String,
+    input: UpdateExpenseInput,
+) -> Result<Expense, String> {
+    ExpenseService::update(&state.db, &id, input)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn delete_expense(state: State<'_, AppState>, id: String) -> Result<(), String> {
+    ExpenseService::delete(&state.db, &id)
+        .await
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn list_expense_categories(
+    state: State<'_, AppState>,
+) -> Result<Vec<ExpenseCategory>, String> {
+    ExpenseService::list_categories(&state.db)
+        .await
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 async fn global_search(
     state: State<'_, AppState>,
@@ -1205,6 +1260,12 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             get_receipt_details_by_visit,
             add_payment,
             get_invoice_payments,
+            list_expenses,
+            get_expense,
+            create_expense,
+            update_expense,
+            delete_expense,
+            list_expense_categories,
             create_procedure,
             list_procedures,
             find_procedure_by_name,

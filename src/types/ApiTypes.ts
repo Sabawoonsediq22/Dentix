@@ -321,6 +321,72 @@ export interface AddPaymentInput {
   notes?: string | null;
 }
 
+export interface ExpenseCategory {
+  id: string;
+  name: string;
+  name_ps: string;
+  sort_order: number;
+}
+
+export interface Expense {
+  id: string;
+  category_id: string;
+  description: string;
+  amount_afn: number;
+  amount_usd: number;
+  expense_date: string;
+  payment_method: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpenseListItem {
+  id: string;
+  category_id: string;
+  category_name: string;
+  category_name_ps: string;
+  description: string;
+  amount_afn: number;
+  amount_usd: number;
+  expense_date: string;
+  payment_method: string;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ExpenseListParams {
+  query?: string;
+  categoryId?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  perPage?: number;
+}
+
+export interface ExpensePageResult {
+  items: ExpenseListItem[];
+  total: number;
+  page: number;
+  per_page: number;
+  total_pages: number;
+  total_spent_afn: number;
+  total_spent_usd: number;
+}
+
+export interface CreateExpenseInput {
+  category_id: string;
+  description: string;
+  amount_afn: number;
+  amount_usd: number;
+  expense_date: string;
+  payment_method: "Cash" | "Card" | "Mobile" | "Insurance";
+  notes?: string | null;
+}
+
+export type UpdateExpenseInput = CreateExpenseInput;
+
 export interface Xray {
   id: string;
   patient_id: string;
@@ -335,6 +401,9 @@ export interface MonthlyRevenuePoint {
   revenue: number;
   revenue_afn: number;
   revenue_usd: number;
+  expenses: number;
+  expenses_afn: number;
+  expenses_usd: number;
 }
 
 export interface DailyTrendPoint {
@@ -354,6 +423,9 @@ export interface ReportSummary {
   revenue_this_month: number;
   revenue_this_month_afn: number;
   revenue_this_month_usd: number;
+  expenses_this_month: number;
+  expenses_this_month_afn: number;
+  expenses_this_month_usd: number;
   outstanding_balance: number;
   outstanding_balance_afn: number;
   outstanding_balance_usd: number;
@@ -362,12 +434,16 @@ export interface ReportSummary {
   active_patients_trend: DailyTrendPoint[];
   visits_trend: DailyTrendPoint[];
   revenue_trend: DailyTrendPoint[];
+  expenses_trend: DailyTrendPoint[];
   outstanding_trend: DailyTrendPoint[];
   prev_active_patients: number;
   prev_total_visits: number;
   prev_revenue: number;
   prev_revenue_afn: number;
   prev_revenue_usd: number;
+  prev_expenses: number;
+  prev_expenses_afn: number;
+  prev_expenses_usd: number;
   prev_outstanding: number;
   prev_outstanding_afn: number;
   prev_outstanding_usd: number;
@@ -409,6 +485,15 @@ export interface DashboardStats {
   yesterday_revenue_usd: number;
   yesterday_patients: number;
   yesterday_procedures: number;
+  daily_expenses: number;
+  daily_expenses_afn: number;
+  daily_expenses_usd: number;
+  yesterday_expenses: number;
+  yesterday_expenses_afn: number;
+  yesterday_expenses_usd: number;
+  net_today: number;
+  net_today_afn: number;
+  net_today_usd: number;
 }
 
 export interface PatientsFlowPoint {

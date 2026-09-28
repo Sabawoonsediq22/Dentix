@@ -388,6 +388,9 @@ pub struct ReportSummary {
     pub revenue_this_month: f64,
     pub revenue_this_month_afn: f64,
     pub revenue_this_month_usd: f64,
+    pub expenses_this_month: f64,
+    pub expenses_this_month_afn: f64,
+    pub expenses_this_month_usd: f64,
     pub outstanding_balance: f64,
     pub outstanding_balance_afn: f64,
     pub outstanding_balance_usd: f64,
@@ -396,12 +399,16 @@ pub struct ReportSummary {
     pub active_patients_trend: Vec<DailyTrendPoint>,
     pub visits_trend: Vec<DailyTrendPoint>,
     pub revenue_trend: Vec<DailyTrendPoint>,
+    pub expenses_trend: Vec<DailyTrendPoint>,
     pub outstanding_trend: Vec<DailyTrendPoint>,
     pub prev_active_patients: i64,
     pub prev_total_visits: i64,
     pub prev_revenue: f64,
     pub prev_revenue_afn: f64,
     pub prev_revenue_usd: f64,
+    pub prev_expenses: f64,
+    pub prev_expenses_afn: f64,
+    pub prev_expenses_usd: f64,
     pub prev_outstanding: f64,
     pub prev_outstanding_afn: f64,
     pub prev_outstanding_usd: f64,
@@ -413,6 +420,9 @@ pub struct MonthlyRevenuePoint {
     pub revenue: f64,
     pub revenue_afn: f64,
     pub revenue_usd: f64,
+    pub expenses: f64,
+    pub expenses_afn: f64,
+    pub expenses_usd: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -439,6 +449,15 @@ pub struct DashboardStats {
     pub yesterday_revenue_usd: f64,
     pub yesterday_patients: i64,
     pub yesterday_procedures: i64,
+    pub daily_expenses: f64,
+    pub daily_expenses_afn: f64,
+    pub daily_expenses_usd: f64,
+    pub yesterday_expenses: f64,
+    pub yesterday_expenses_afn: f64,
+    pub yesterday_expenses_usd: f64,
+    pub net_today: f64,
+    pub net_today_afn: f64,
+    pub net_today_usd: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -617,6 +636,93 @@ pub struct InvoiceListParams {
     pub patient_id: Option<String>,
     pub page: Option<u32>,
     pub per_page: Option<u32>,
+}
+
+// Expenses
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct ExpenseCategory {
+    pub id: String,
+    pub name: String,
+    pub name_ps: String,
+    pub sort_order: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct Expense {
+    pub id: String,
+    pub category_id: String,
+    pub description: String,
+    #[sqlx(default)]
+    pub amount_afn: f64,
+    #[sqlx(default)]
+    pub amount_usd: f64,
+    pub expense_date: String,
+    pub payment_method: String,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct ExpenseListItem {
+    pub id: String,
+    pub category_id: String,
+    pub category_name: String,
+    pub category_name_ps: String,
+    pub description: String,
+    #[sqlx(default)]
+    pub amount_afn: f64,
+    #[sqlx(default)]
+    pub amount_usd: f64,
+    pub expense_date: String,
+    pub payment_method: String,
+    pub notes: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ExpensePageResult {
+    pub items: Vec<ExpenseListItem>,
+    pub total: i64,
+    pub page: u32,
+    pub per_page: u32,
+    pub total_pages: i64,
+    pub total_spent_afn: f64,
+    pub total_spent_usd: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseListParams {
+    pub query: Option<String>,
+    pub category_id: Option<String>,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    pub page: Option<u32>,
+    pub per_page: Option<u32>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateExpenseInput {
+    pub category_id: String,
+    pub description: String,
+    pub amount_afn: f64,
+    pub amount_usd: f64,
+    pub expense_date: String,
+    pub payment_method: PaymentMethod,
+    pub notes: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateExpenseInput {
+    pub category_id: String,
+    pub description: String,
+    pub amount_afn: f64,
+    pub amount_usd: f64,
+    pub expense_date: String,
+    pub payment_method: PaymentMethod,
+    pub notes: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

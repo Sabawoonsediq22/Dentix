@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { useDashboardStats, usePatientsFlow, useProcedureDistribution, useRecentPatients } from "../hooks/useDashboard";
+import { useDashboardStats, usePatientsFlow, useRecentPatients } from "../hooks/useDashboard";
+import { useReportSummary } from "../hooks/useReports";
 import { useUpdateVisitStatus } from "../hooks/useVisits";
 import { toast } from "../lib/toast-utils";
 import StatCard, { type CardAccent } from "../components/dashboard/StatCard";
@@ -12,16 +13,13 @@ import { Badge, Button, Select } from "../components/ui";
 import ChartCard from "../components/dashboard/ChartCard";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
+import type { ReportFilter } from "../types/ApiTypes";
 
-const COLORS = [
-  "#006A71", "#005E8A", "#F2C12E", "#9B5DE5", "#00C49A",
-  "#FF6B6B", "#FF8C42", "#4ECDC4", "#6C5CE7", "#A8E6CF",
-  "#FFD93D", "#FF6B6B", "#95E1D3", "#F38181", "#AA96DA",
-  "#FCBAD3", "#A1C4FD", "#C2E9FB", "#D4A5A5", "#9ED2C6",
-  "#FFB7B2", "#B5EAD7",
-];
-
-const AUTO_REFRESH_INTERVAL = 300000;
+const FINANCE_COLORS = {
+  revenue: "#10b981",
+  expenses: "#ef4444",
+  outstanding: "#f59e0b",
+};
 
 const formatAFN = (val: number) =>
   val.toLocaleString("en-US", {
@@ -30,10 +28,12 @@ const formatAFN = (val: number) =>
   }) + " AFN";
 
 const formatUSD = (val: number) =>
-  "$" + val.toLocaleString("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  });
+  val === 0
+    ? ""
+    : "$" + val.toLocaleString("en-US", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      });
 
 const computeTrend = (
   today: number,
@@ -41,7 +41,7 @@ const computeTrend = (
 ): { value: string; positive: boolean } | undefined => {
   if (yesterday <= 0) return undefined;
   const rawPct = ((today - yesterday) / yesterday) * 100;
-  const clamped = Math.max(-100, Math.min(100, rawPct));
+  const clamped = Math.max(-100, rawPct);
   const sign = clamped >= 0 ? "+" : "";
   return { value: `${sign}${clamped.toFixed(1)}%`, positive: clamped >= 0 };
 };
@@ -54,9 +54,8 @@ interface StatCardDef {
   secondaryValue?: string;
   secondary?: string;
   badge?: React.ReactNode;
-  trend?: { value: string; positive: boolean };
+  trend?: { value: string; positive: boolean; direction?: "up" | "down" };
   context?: string;
-  sparklineData?: { day: string; value: number }[];
   onClick?: () => void;
 }
 
@@ -83,14 +82,22 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [flowMode, setFlowMode] = useState<"daily" | "weekly" | "monthly">("weekly");
-  const [procMode, setProcMode] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [lastUpdated, setLastUpdated] = useState(new Date());
+  const [financeMode, setFinanceMode] = useState<"daily" | "weekly" | "monthly">("daily");
   const isDark = useDarkMode();
 
-  const { data: stats, isLoading: statsLoading, isError: statsError } =
-    useDashboardStats();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    dataUpdatedAt,
+  } = useDashboardStats();
   const { data: flowData } = usePatientsFlow(flowMode);
-  const { data: procData } = useProcedureDistribution(procMode);
+  const financeFilter = React.useMemo<ReportFilter>(
+    () => ({ filter_type: financeMode }),
+    [financeMode],
+  );
+  const { data: financeSummary, isLoading: financeLoading } =
+    useReportSummary(financeFilter);
   const { data: recentPatients, refetch: refetchRecentPatients } =
     useRecentPatients(4);
   const updateStatusMutation = useUpdateVisitStatus();
@@ -106,13 +113,6 @@ const Dashboard: React.FC = () => {
     [updateStatusMutation],
   );
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLastUpdated(new Date());
-    }, AUTO_REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, []);
-
   const statCards: StatCardDef[] = React.useMemo(() => {
     if (statsLoading) {
       return [
@@ -120,15 +120,19 @@ const Dashboard: React.FC = () => {
         { title: t("dashboard.stats.patientsToday", "Patients Today"), accent: "blue", loading: true },
         { title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"), accent: "orange", loading: true },
         { title: t("dashboard.stats.proceduresPerformed", "Procedures Performed"), accent: "purple", loading: true },
+        { title: t("dashboard.stats.dailyExpenses", "Daily Expenses"), accent: "red", loading: true },
+        { title: t("dashboard.stats.netToday", "Net Today"), accent: "teal", loading: true },
       ];
     }
 
     if (statsError || !stats) {
       return [
-        { title: t("dashboard.stats.dailyRevenue", "Daily Revenue"), value: "0 AFN", secondaryValue: "$ 0.00", accent: "green" },
+        { title: t("dashboard.stats.dailyRevenue", "Daily Revenue"), value: "0 AFN", accent: "green" },
         { title: t("dashboard.stats.patientsToday", "Patients Today"), value: "0", accent: "blue" },
-        { title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"), value: "0 AFN", secondaryValue: "$ 0.00", secondary: `0 ${t("dashboard.invoices", "invoices")}`, accent: "orange", onClick: () => navigate("/billing?filter=outstanding") },
+        { title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"), value: "0 AFN", secondary: `0 ${t("dashboard.invoices", "invoices")}`, accent: "orange", onClick: () => navigate("/billing?filter=outstanding") },
         { title: t("dashboard.stats.proceduresPerformed", "Procedures Performed"), value: "00", accent: "purple" },
+        { title: t("dashboard.stats.dailyExpenses", "Daily Expenses"), value: "0 AFN", accent: "red", onClick: () => navigate("/expenses") },
+        { title: t("dashboard.stats.netToday", "Net Today"), value: "0 AFN", accent: "teal" },
       ];
     }
 
@@ -142,24 +146,13 @@ const Dashboard: React.FC = () => {
             ? <Badge variant="warning" className="text-[10px] sm:text-xs font-bold px-2 py-0.5">{t("dashboard.medium", "Medium")}</Badge>
             : <Badge variant="destructive" className="text-[10px] sm:text-xs font-bold px-2 py-0.5">{t("dashboard.high", "High")}</Badge>;
 
-    const generateSparkline = (today: number, yesterday: number): { day: string; value: number }[] => {
-      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-      const diff = today - yesterday;
-      return days.map((day, i) => {
-        const base = yesterday + (diff * (i / 6));
-        const jitter = (Math.sin(i * 1.7) * yesterday * 0.1);
-        return { day, value: Math.max(0, Math.round(base + jitter)) };
-      });
-    };
-
     return [
       {
         title: t("dashboard.stats.dailyRevenue", "Daily Revenue"),
         value: formatAFN(stats.daily_revenue_afn),
         secondaryValue: formatUSD(stats.daily_revenue_usd),
         accent: "green",
-        trend: computeTrend(stats.daily_revenue, stats.yesterday_revenue),
-        sparklineData: generateSparkline(stats.daily_revenue, stats.yesterday_revenue),
+        trend: computeTrend(stats.daily_revenue_afn, stats.yesterday_revenue_afn),
       },
       {
         title: t("dashboard.stats.patientsToday", "Patients Today"),
@@ -167,7 +160,6 @@ const Dashboard: React.FC = () => {
         accent: "blue",
         trend: computeTrend(stats.patients_today, stats.yesterday_patients),
         context: t("dashboard.todayAppointments", "today's appointments"),
-        sparklineData: generateSparkline(stats.patients_today, stats.yesterday_patients),
       },
       {
         title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"),
@@ -183,8 +175,34 @@ const Dashboard: React.FC = () => {
         value: String(stats.procedures_performed).padStart(2, "0"),
         accent: "purple",
         trend: computeTrend(stats.procedures_performed, stats.yesterday_procedures),
-        context: t("dashboard.thisMonth", "this month"),
-        sparklineData: generateSparkline(stats.procedures_performed, stats.yesterday_procedures),
+        context: t("dashboard.stats.todayContext", "today"),
+      },
+      {
+        title: t("dashboard.stats.dailyExpenses", "Daily Expenses"),
+        value: formatAFN(stats.daily_expenses_afn),
+        secondaryValue: formatUSD(stats.daily_expenses_usd),
+        accent: "red",
+        trend: (() => {
+          const raw = computeTrend(stats.daily_expenses_afn, stats.yesterday_expenses_afn);
+          if (!raw) return undefined;
+          return {
+            value: raw.value,
+            positive: !raw.positive,
+            direction: raw.positive ? "up" : "down",
+          };
+        })(),
+        onClick: () => navigate("/expenses"),
+      },
+      {
+        title: t("dashboard.stats.netToday", "Net Today"),
+        value: formatAFN(stats.net_today_afn),
+        secondaryValue: formatUSD(stats.net_today_usd),
+        accent: "teal",
+        trend: computeTrend(
+          stats.net_today_afn,
+          stats.yesterday_revenue_afn - stats.yesterday_expenses_afn,
+        ),
+        context: t("dashboard.stats.netContext", "revenue minus expenses"),
       },
     ];
   }, [stats, statsLoading, statsError, t]);
@@ -358,6 +376,31 @@ const Dashboard: React.FC = () => {
     [flowData, t],
   );
 
+  const financeSlices = React.useMemo(() => {
+    if (!financeSummary) return [];
+    return [
+      {
+        label: t("reports.stats.revenue", "Revenue"),
+        value: financeSummary.revenue_this_month_afn,
+        color: FINANCE_COLORS.revenue,
+      },
+      {
+        label: t("reports.stats.expenses", "Expenses"),
+        value: financeSummary.expenses_this_month_afn,
+        color: FINANCE_COLORS.expenses,
+      },
+      {
+        label: t("reports.stats.outstanding", "Outstanding"),
+        value: financeSummary.outstanding_balance_afn,
+        color: FINANCE_COLORS.outstanding,
+      },
+    ].filter((slice) => slice.value > 0);
+  }, [financeSummary, t]);
+
+  const netProfit =
+    (financeSummary?.revenue_this_month_afn ?? 0) -
+    (financeSummary?.expenses_this_month_afn ?? 0);
+
   return (
     <div className="space-y-4 sm:space-y-5 xl:space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
@@ -370,7 +413,8 @@ const Dashboard: React.FC = () => {
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] text-gray-400 dark:text-gray-500">
-              {t("dashboard.lastUpdated", "Last updated")}: {format(lastUpdated, "HH:mm:ss")}
+              {t("dashboard.lastUpdated", "Last updated")}:{" "}
+              {dataUpdatedAt > 0 ? format(dataUpdatedAt, "HH:mm:ss") : "--:--:--"}
             </span>
             <div
               className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"
@@ -389,7 +433,7 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {statCards.map((stat) => (
           <StatCard
             key={stat.title}
@@ -402,7 +446,6 @@ const Dashboard: React.FC = () => {
             secondary={stat.secondary}
             secondaryValue={stat.secondaryValue}
             context={stat.context}
-            sparklineData={stat.sparklineData}
             onClick={stat.onClick}
           />
         ))}
@@ -435,12 +478,12 @@ const Dashboard: React.FC = () => {
         </ChartCard>
 
         <ChartCard
-          title={t("dashboard.procedureDistribution", "Procedure Distribution")}
+          title={t("dashboard.financeDistribution", "Finance Overview")}
           className="col-span-1 lg:col-span-5"
           action={
             <Select
-              value={procMode}
-              onChange={(e) => setProcMode(e.target.value as "daily" | "weekly" | "monthly")}
+              value={financeMode}
+              onChange={(e) => setFinanceMode(e.target.value as "daily" | "weekly" | "monthly")}
               className="w-auto text-xs sm:text-sm py-1 px-2 min-w-30 cursor-pointer"
             >
               <option value="daily">{t("reports.filter.today", "Today")}</option>
@@ -449,61 +492,112 @@ const Dashboard: React.FC = () => {
             </Select>
           }
         >
-          <div className="h-56 sm:h-64 lg:h-72 w-full">
-            {procData && procData.length > 0 ? (
-              <Chart
-                options={{
-                  chart: {
-                    type: "pie",
-                    height: "100%",
-                    toolbar: { show: false },
-                    fontFamily: "Inter, system-ui, sans-serif",
-                    background: "transparent",
-                    animations: {
-                      enabled: true,
-                      easing: "easeinout",
-                      speed: 600,
-                    },
-                  },
-                  colors: COLORS.slice(0, procData.length),
-                  labels: procData.map((d) => d.name),
-                  legend: { show: false },
-                  dataLabels: {
-                    enabled: true,
-                    formatter: (val: number) => `${val.toFixed(1)}%`,
-                    style: {
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      colors: [isDark ? "#e5e7eb" : "#374151"],
-                    },
-                    dropShadow: { enabled: false },
-                  },
-                  tooltip: {
-                    theme: isDark ? "dark" : "light",
-                    style: { fontSize: "12px" },
-                    y: { formatter: (val: number) => String(val) },
-                  },
-                  stroke: {
-                    width: 2,
-                    colors: [isDark ? "#1f2937" : "#ffffff"],
-                  },
-                  responsive: [
-                    {
-                      breakpoint: 640,
-                      options: {
-                        chart: { height: 220 },
-                        legend: { fontSize: "10px" },
+          <div>
+            <div className="h-44 sm:h-52 lg:h-60 w-full">
+              {financeLoading ? (
+                <div className="h-full w-full animate-pulse rounded-xl bg-gray-100 dark:bg-gray-700/40" />
+              ) : financeSlices.length > 0 ? (
+                <Chart
+                  options={{
+                    chart: {
+                      type: "pie",
+                      height: "100%",
+                      toolbar: { show: false },
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      background: "transparent",
+                      animations: {
+                        enabled: true,
+                        easing: "easeinout",
+                        speed: 600,
                       },
                     },
-                  ],
-                }}
-                series={procData.map((d) => d.count)}
-                type="pie"
-                height="100%"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 gap-2">
-                <span className="text-xs font-medium">{t("dashboard.noDataAvailable", "No data available")}</span>
+                    colors: financeSlices.map((s) => s.color),
+                    labels: financeSlices.map((s) => s.label),
+                    legend: {
+                      show: true,
+                      position: "bottom",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      markers: {
+                        strokeWidth: 0,
+                        size: 8,
+                        offsetX: -2,
+                      },
+                      itemMargin: { horizontal: 8, vertical: 4 },
+                      labels: {
+                        colors: isDark ? "#d1d5db" : "#374151",
+                        useSeriesColors: false,
+                      },
+                    },
+                    dataLabels: {
+                      enabled: true,
+                      formatter: (val: number) => `${val.toFixed(1)}%`,
+                      style: {
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        colors: [isDark ? "#e5e7eb" : "#374151"],
+                      },
+                      dropShadow: { enabled: false },
+                    },
+                    tooltip: {
+                      theme: isDark ? "dark" : "light",
+                      style: { fontSize: "12px" },
+                      y: { formatter: (val: number) => formatAFN(val) },
+                    },
+                    stroke: {
+                      width: 2,
+                      colors: [isDark ? "#1f2937" : "#ffffff"],
+                    },
+                    responsive: [
+                      {
+                        breakpoint: 640,
+                        options: {
+                          legend: { fontSize: "10px" },
+                        },
+                      },
+                    ],
+                  }}
+                  series={financeSlices.map((s) => s.value)}
+                  type="pie"
+                  height="100%"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 gap-2">
+                  <span className="text-xs font-medium">{t("dashboard.noDataAvailable", "No data available")}</span>
+                </div>
+              )}
+            </div>
+            {financeSummary && financeSlices.length > 0 && (
+              <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-2.5">
+                <div dir="ltr" className="flex items-end justify-center gap-1 sm:gap-2">
+                  <div className="text-center">
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                      {t("reports.stats.revenue", "Revenue")}
+                    </div>
+                    <div className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">
+                      {formatAFN(financeSummary.revenue_this_month_afn)}
+                    </div>
+                  </div>
+                  <span className="pb-0.5 text-xs font-medium text-gray-400 dark:text-gray-500">-</span>
+                  <div className="text-center">
+                    <div className="text-[10px] font-medium text-gray-500 dark:text-gray-400">
+                      {t("reports.stats.expenses", "Expenses")}
+                    </div>
+                    <div className="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">
+                      {formatAFN(financeSummary.expenses_this_month_afn)}
+                    </div>
+                  </div>
+                  <span className="pb-0.5 text-xs font-medium text-gray-400 dark:text-gray-500">=</span>
+                  <div className="text-center">
+                    <div className="text-[10px] font-semibold text-gray-700 dark:text-gray-300">
+                      {t("reports.stats.netProfit", "Net Profit")}
+                    </div>
+                    <div className={`mt-0.5 text-xs font-bold ${netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                      {formatAFN(netProfit)}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>

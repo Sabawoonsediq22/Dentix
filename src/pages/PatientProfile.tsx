@@ -497,7 +497,11 @@ const PatientProfile: React.FC = () => {
         <StatisticsCard
           label={t("patientProfile.totalSpentLabel")}
           value={`${(statistics?.total_spent_afn || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} AFN`}
-          secondaryValue={`$${(statistics?.total_spent_usd || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+          secondaryValue={
+            statistics?.total_spent_usd
+              ? `$${statistics.total_spent_usd.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+              : undefined
+          }
           subtitle={totalSpentStatus}
           variant="success"
         />
@@ -513,7 +517,11 @@ const PatientProfile: React.FC = () => {
         <StatisticsCard
           label={t("patientProfile.outstandingBalanceLabel")}
           value={`${(statistics?.outstanding_balance_afn || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })} AFN`}
-          secondaryValue={`$${(statistics?.outstanding_balance_usd || 0).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`}
+          secondaryValue={
+            statistics?.outstanding_balance_usd
+              ? `$${statistics.outstanding_balance_usd.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+              : undefined
+          }
           variant={
             statistics?.outstanding_balance &&
             statistics.outstanding_balance > 0

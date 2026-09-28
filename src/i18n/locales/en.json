@@ -4,6 +4,7 @@
     "patients": "Patients",
     "visits": "All Visits",
     "billings": "Billing",
+    "expenses": "Expenses",
     "reports": "Reports",
     "about": "About Us",
     "settings": "Settings",
@@ -27,14 +28,18 @@
       "dailyRevenue": "Daily Revenue",
       "patientsToday": "Patients Today",
       "outstandingBalance": "Outstanding Balance",
-      "proceduresPerformed": "Procedures Performed"
+      "proceduresPerformed": "Procedures Performed",
+      "dailyExpenses": "Daily Expenses",
+      "netToday": "Net Today",
+      "netContext": "revenue minus expenses",
+      "todayContext": "today"
     },
     "patientsFlow": "Patients Flow",
     "visits": "Visits",
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
-    "procedureDistribution": "Procedure Distribution",
+    "financeDistribution": "Finance Overview",
     "recentPatients": "Recent Patients",
     "viewAllPatients": "View All Patients",
     "notifications": {
@@ -51,8 +56,7 @@
       "status": "STATUS"
     },
     "noRecentPatients": "No recent patients",
-    "todayAppointments": "today's appointments",
-    "thisMonth": "this month"
+    "todayAppointments": "today's appointments"
   },
   "settings": {
     "language": "Language",
@@ -307,6 +311,7 @@
     "delete": "Delete",
     "deleting": "Deleting...",
     "edit": "Edit",
+    "save": "Save",
     "restoring": "Restoring...",
     "back": "Back",
     "backToPatients": "Back to Patients",
@@ -321,7 +326,8 @@
     "invoices": "Invoices",
     "receipts": "Receipts",
     "payments": "Payments",
-    "treatments": "Treatments"
+    "treatments": "Treatments",
+    "expenses": "Expenses"
   },
   "pagination": {
     "showing": "Showing {{start}} to {{end}} of {{total}}",
@@ -365,6 +371,8 @@
       "activePatients": "Active Patients",
       "totalVisits": "Total Visits",
       "revenue": "Revenue",
+      "expenses": "Expenses",
+      "netProfit": "Net Profit",
       "outstanding": "Outstanding"
     },
     "trend": {
@@ -378,6 +386,11 @@
     },
     "charts": {
       "revenueTrend": "Revenue Trend",
+      "revenueExpenseTrend": "Revenue vs Expenses",
+      "revenueAfn": "Revenue AFN",
+      "revenueUsd": "Revenue USD",
+      "expensesAfn": "Expenses AFN",
+      "expensesUsd": "Expenses USD",
       "visitDistribution": "Visit Distribution",
       "count": "Count",
       "revenue": "Revenue"
@@ -401,9 +414,11 @@
       "patients": "Patient Report",
       "patientsDesc": "Export patient records and statistics",
       "financial": "Financial Report",
-      "financialDesc": "Export invoices and payment history",
+      "financialDesc": "Revenue, expenses and profit summary",
       "treatment": "Treatment Report",
-      "treatmentDesc": "Export treatment history and procedures"
+      "treatmentDesc": "Export treatment history and procedures",
+      "expenses": "Expense Report",
+      "expensesDesc": "Export clinic expense records"
     },
     "filter": {
       "period": "Period",
@@ -482,6 +497,78 @@
       "paymentError": "Failed to record payment"
     },
     "currency": "AFN"
+  },
+  "expenses": {
+    "title": "Clinic Expenses",
+    "description": "Track and manage all clinic expenses.",
+    "addExpense": "Add Expense",
+    "newExpense": "New Expense",
+    "editExpense": "Edit Expense",
+    "searchPlaceholder": "Search by description, category or notes...",
+    "loading": "Loading expenses...",
+    "errorLoading": "Error loading expenses",
+    "stats": {
+      "totalExpenses": "Total Expenses",
+      "totalSpent": "Total Spent"
+    },
+    "filters": {
+      "category": "Category",
+      "allCategories": "All Categories",
+      "from": "From",
+      "to": "To",
+      "clearDates": "Clear date filters"
+    },
+    "methods": {
+      "cash": "Cash",
+      "card": "Card",
+      "mobile": "Mobile",
+      "insurance": "Insurance"
+    },
+    "table": {
+      "no": "NO.",
+      "date": "DATE",
+      "category": "CATEGORY",
+      "description": "DESCRIPTION",
+      "amount": "AMOUNT",
+      "method": "METHOD",
+      "actions": "ACTIONS",
+      "dateLabel": "Date:",
+      "methodLabel": "Method:",
+      "empty": "No expenses found matching your criteria."
+    },
+    "form": {
+      "category": "Category",
+      "selectCategory": "Select a category",
+      "description": "Description",
+      "descriptionPlaceholder": "e.g. Monthly rent payment",
+      "date": "Date",
+      "amounts": "Amounts",
+      "paymentMethod": "Payment Method",
+      "notes": "Notes",
+      "notesPlaceholder": "Additional details",
+      "add": "Add"
+    },
+    "errors": {
+      "categoryRequired": "Please select a category",
+      "descriptionRequired": "Description is required",
+      "dateRequired": "Expense date is required",
+      "negativeAmount": "Amounts cannot be negative",
+      "amountRequired": "Enter an amount in AFN or USD"
+    },
+    "actions": {
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "notifications": {
+      "created": "Expense created successfully",
+      "createError": "Failed to create expense",
+      "updated": "Expense updated successfully",
+      "updateError": "Failed to update expense",
+      "deleted": "Expense deleted successfully",
+      "deleteError": "Failed to delete expense"
+    },
+    "deleteConfirmTitle": "Delete expense?",
+    "deleteConfirmDescription": "This action cannot be undone."
   },
   "about": {
     "hero": {

@@ -1,26 +1,29 @@
 use sqlx::SqlitePool;
 use crate::models::*;
 use crate::services::errors::AppResult;
-use chrono::{Utc, Duration};
+use chrono::{Utc, Duration, Local};
 
 pub struct DashboardService;
 
 impl DashboardService {
     pub async fn stats(pool: &SqlitePool) -> AppResult<DashboardStats> {
-        let today = Utc::now().format("%Y-%m-%d").to_string();
+        let now = Local::now();
+        let today = now.format("%Y-%m-%d").to_string();
+        let yesterday = (now - Duration::days(1)).format("%Y-%m-%d").to_string();
 
         let daily_revenue_row: (f64, f64) = sqlx::query_as(
             "SELECT
-               COALESCE(SUM(paid_afn), 0.0),
-               COALESCE(SUM(paid_usd), 0.0)
-             FROM invoices WHERE date(issued_at) = ?"
+               COALESCE(SUM(amount_afn), 0.0),
+               COALESCE(SUM(amount_usd), 0.0)
+             FROM payments WHERE date(received_at, 'localtime') = ?"
         )
         .bind(&today)
         .fetch_one(pool)
         .await?;
 
         let patients_today: i64 = sqlx::query_scalar(
-            "SELECT COUNT(DISTINCT patient_id) FROM visits WHERE date(visit_date) = ?"
+            "SELECT COUNT(DISTINCT patient_id) FROM visits
+             WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) = ?"
         )
         .bind(&today)
         .fetch_one(pool)
@@ -43,37 +46,59 @@ impl DashboardService {
         .await?;
 
         let procedures_performed: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(SUM(number_of_procedures), 0) FROM treatment_records WHERE date(performed_at) = ?"
+            "SELECT COALESCE(SUM(number_of_procedures), 0) FROM treatment_records WHERE date(performed_at, 'localtime') = ?"
         )
         .bind(&today)
         .fetch_one(pool)
         .await?;
 
-        let yesterday = (Utc::now() - Duration::days(1)).format("%Y-%m-%d").to_string();
-
         let yesterday_revenue_row: (f64, f64) = sqlx::query_as(
             "SELECT
-               COALESCE(SUM(paid_afn), 0.0),
-               COALESCE(SUM(paid_usd), 0.0)
-             FROM invoices WHERE date(issued_at) = ?"
+               COALESCE(SUM(amount_afn), 0.0),
+               COALESCE(SUM(amount_usd), 0.0)
+             FROM payments WHERE date(received_at, 'localtime') = ?"
         )
         .bind(&yesterday)
         .fetch_one(pool)
         .await?;
 
         let yesterday_patients: i64 = sqlx::query_scalar(
-            "SELECT COUNT(DISTINCT patient_id) FROM visits WHERE date(visit_date) = ?"
+            "SELECT COUNT(DISTINCT patient_id) FROM visits
+             WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) = ?"
         )
         .bind(&yesterday)
         .fetch_one(pool)
         .await?;
 
         let yesterday_procedures: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(SUM(number_of_procedures), 0) FROM treatment_records WHERE date(performed_at) = ?"
+            "SELECT COALESCE(SUM(number_of_procedures), 0) FROM treatment_records WHERE date(performed_at, 'localtime') = ?"
         )
         .bind(&yesterday)
         .fetch_one(pool)
         .await?;
+
+        let daily_expenses_row: (f64, f64) = sqlx::query_as(
+            "SELECT
+               COALESCE(SUM(amount_afn), 0.0),
+               COALESCE(SUM(amount_usd), 0.0)
+             FROM expenses WHERE date(expense_date) = ?"
+        )
+        .bind(&today)
+        .fetch_one(pool)
+        .await?;
+
+        let yesterday_expenses_row: (f64, f64) = sqlx::query_as(
+            "SELECT
+               COALESCE(SUM(amount_afn), 0.0),
+               COALESCE(SUM(amount_usd), 0.0)
+             FROM expenses WHERE date(expense_date) = ?"
+        )
+        .bind(&yesterday)
+        .fetch_one(pool)
+        .await?;
+
+        let net_today_afn = daily_revenue_row.0 - daily_expenses_row.0;
+        let net_today_usd = daily_revenue_row.1 - daily_expenses_row.1;
 
         Ok(DashboardStats {
             daily_revenue: daily_revenue_row.0 + daily_revenue_row.1,
@@ -90,6 +115,15 @@ impl DashboardService {
             yesterday_revenue_usd: yesterday_revenue_row.1,
             yesterday_patients,
             yesterday_procedures,
+            daily_expenses: daily_expenses_row.0 + daily_expenses_row.1,
+            daily_expenses_afn: daily_expenses_row.0,
+            daily_expenses_usd: daily_expenses_row.1,
+            yesterday_expenses: yesterday_expenses_row.0 + yesterday_expenses_row.1,
+            yesterday_expenses_afn: yesterday_expenses_row.0,
+            yesterday_expenses_usd: yesterday_expenses_row.1,
+            net_today: net_today_afn + net_today_usd,
+            net_today_afn,
+            net_today_usd,
         })
     }
 
