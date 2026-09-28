@@ -440,7 +440,7 @@ impl PatientService {
         let invoice_number = format!("INV-{}", Utc::now().timestamp_millis());
         let now = Utc::now().to_rfc3339();
 
-        Ok(sqlx::query_as::<_, Invoice>(
+        let invoice = sqlx::query_as::<_, Invoice>(
             "INSERT INTO invoices (id, visit_id, invoice_number,
               subtotal_afn, subtotal_usd,
               discount_afn, discount_usd,
@@ -477,7 +477,23 @@ impl PatientService {
         })
         .bind(&now)
         .fetch_one(&mut **tx)
-        .await?)
+        .await?;
+
+        if paid_afn_total > 0.0 || paid_usd_total > 0.0 {
+            sqlx::query(
+                "INSERT INTO payments (id, invoice_id, amount_afn, amount_usd, method, notes, received_at)
+                 VALUES (?, ?, ?, ?, 'Cash', '', ?)",
+            )
+            .bind(format!("PAY-{}", uuid::Uuid::new_v4().simple()))
+            .bind(&invoice_id)
+            .bind(paid_afn_total)
+            .bind(paid_usd_total)
+            .bind(&now)
+            .execute(&mut **tx)
+            .await?;
+        }
+
+        Ok(invoice)
     }
 
     fn split_csv(value: Option<&str>) -> Vec<String> {

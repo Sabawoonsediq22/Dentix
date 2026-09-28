@@ -7,7 +7,7 @@
     "expenses": "لګښتونه",
     "reports": "رپورټونه",
     "about": "زموږ په اړه",
-    "settings": "ترتیبات",
+    "settings": "تنظیمات",
     "newPatient": "نوی ناروغ ثبتول"
   },
   "dashboard": {
@@ -30,8 +30,9 @@
       "outstandingBalance": "پاتې بیلانس",
       "proceduresPerformed": "تکمیل شوې پروسیجرونه",
       "dailyExpenses": "ورځنې لګښتونه",
-      "netToday": "نن د خالص فایده",
-      "netContext": "عایدات له لګښتونو څخه"
+      "netToday": "د نن خالص فایده",
+      "netContext": "عایدات منفي لګښتونه",
+      "todayContext": "نن"
     },
     "patientsFlow": "د ناروغانو جریان",
     "visits": "لیدنې",
@@ -55,16 +56,15 @@
       "status": "حالت"
     },
     "noRecentPatients": "هیڅ وروستي ناروغان نشته",
-    "todayAppointments": "د نن نوبتونه",
-    "thisMonth": "دغه میاشت"
+    "todayAppointments": "د نن نوبتونه"
   },
   "settings": {
     "language": "ژبه",
-    "description": "د غوښتنلیک ترتیبات تنظیم کړئ.",
-    "title": "ترتیبات او بیک اپ",
+    "description": "د غوښتنلیک تنظیمات تنظیم کړئ.",
+    "title": "تنظیمات او بیک اپ",
     "subtitle": "د کلینیک معلومات تنظیم کړئ، د بیک اپ غوره توبونه اداره کړئ، او د سیسټم احصایې وګورئ.",
     "saveChanges": "بدلونونه خوندي کړئ",
-    "changesSaved": "ترتیبات په بریالیتوب سره خوندي شول",
+    "changesSaved": "تنظیمات په بریالیتوب سره خوندي شول",
     "saveError": "د ترتیباتو خوندي کول ناکام شول",
     "clinicInfo": "د کلینیک تنظیمات",
     "clinicInfoDesc": "د کلینیک نوم، اړیکې او برانډینګ شتمنۍ اداره کړئ.",
@@ -538,7 +538,7 @@
       "category": "ویش",
       "selectCategory": "ویش وټاکئ",
       "description": "تشریح",
-      "descriptionPlaceholder": "لکې: د میاشتنۍ کرایې تادیه",
+      "descriptionPlaceholder": "لکه: د میاشتنۍ کرایې تادیه",
       "date": "نیټه",
       "amounts": "اندازې",
       "paymentMethod": "د تادیې طریقه",
@@ -787,7 +787,7 @@
     "targetLocal": "یوازې محلي",
     "targetGdrive": "یوازې ګوګل ډرایو",
     "targetBoth": "محلي + ګوګل ډرایو",
-    "saveSettings": "ترتیبات خوندي کړئ",
+    "saveSettings": "تنظیمات خوندي کړئ",
     "manualBackup": "لاسي بیک اپ",
     "backupNowLocal": "اوس بیک اپ واخلئ (محلي)",
     "backupNowGdrive": "اوس بیک اپ واخلئ (ګوګل ډرایو)",
@@ -796,8 +796,8 @@
     "noLastBackup": "تر اوسه بیک اپ نشته",
     "googleDrive": "ګوګل ډرایو",
     "save": "خوندي کړئ",
-    "settingsSaved": "د اتومات بیک اپ ترتیبات خوندي شول",
-    "saveError": "د بیک اپ ترتیباتو خوندي کول ناکام شول",
+    "settingsSaved": "د اتومات بیک اپ تنظیمات خوندي شول",
+    "saveError": "د بیک اپ تنظیمات خوندي کول ناکام شول",
     "autoBackupConfig": "اتومات بیک اپ تنظیم کړئ",
     "autoBackupConfigDesc": "د اتومات بیک اپ لپاره تکرار او هدف وټاکئ.",
     "connectGdrive": "ګوګل ډرایو سره وصل شئ",

@@ -21,8 +21,6 @@ const COLORS = [
   "#FFB7B2", "#B5EAD7",
 ];
 
-const AUTO_REFRESH_INTERVAL = 300000;
-
 const formatAFN = (val: number) =>
   val.toLocaleString("en-US", {
     minimumFractionDigits: 0,
@@ -43,7 +41,7 @@ const computeTrend = (
 ): { value: string; positive: boolean } | undefined => {
   if (yesterday <= 0) return undefined;
   const rawPct = ((today - yesterday) / yesterday) * 100;
-  const clamped = Math.max(-100, Math.min(100, rawPct));
+  const clamped = Math.max(-100, rawPct);
   const sign = clamped >= 0 ? "+" : "";
   return { value: `${sign}${clamped.toFixed(1)}%`, positive: clamped >= 0 };
 };
@@ -56,9 +54,8 @@ interface StatCardDef {
   secondaryValue?: string;
   secondary?: string;
   badge?: React.ReactNode;
-  trend?: { value: string; positive: boolean };
+  trend?: { value: string; positive: boolean; direction?: "up" | "down" };
   context?: string;
-  sparklineData?: { day: string; value: number }[];
   onClick?: () => void;
 }
 
@@ -86,11 +83,14 @@ const Dashboard: React.FC = () => {
   const { t } = useTranslation();
   const [flowMode, setFlowMode] = useState<"daily" | "weekly" | "monthly">("weekly");
   const [procMode, setProcMode] = useState<"daily" | "weekly" | "monthly">("daily");
-  const [lastUpdated, setLastUpdated] = useState(new Date());
   const isDark = useDarkMode();
 
-  const { data: stats, isLoading: statsLoading, isError: statsError } =
-    useDashboardStats();
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+    dataUpdatedAt,
+  } = useDashboardStats();
   const { data: flowData } = usePatientsFlow(flowMode);
   const { data: procData } = useProcedureDistribution(procMode);
   const { data: recentPatients, refetch: refetchRecentPatients } =
@@ -107,13 +107,6 @@ const Dashboard: React.FC = () => {
     },
     [updateStatusMutation],
   );
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setLastUpdated(new Date());
-    }, AUTO_REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, []);
 
   const statCards: StatCardDef[] = React.useMemo(() => {
     if (statsLoading) {
@@ -148,24 +141,13 @@ const Dashboard: React.FC = () => {
             ? <Badge variant="warning" className="text-[10px] sm:text-xs font-bold px-2 py-0.5">{t("dashboard.medium", "Medium")}</Badge>
             : <Badge variant="destructive" className="text-[10px] sm:text-xs font-bold px-2 py-0.5">{t("dashboard.high", "High")}</Badge>;
 
-    const generateSparkline = (today: number, yesterday: number): { day: string; value: number }[] => {
-      const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-      const diff = today - yesterday;
-      return days.map((day, i) => {
-        const base = yesterday + (diff * (i / 6));
-        const jitter = (Math.sin(i * 1.7) * yesterday * 0.1);
-        return { day, value: Math.max(0, Math.round(base + jitter)) };
-      });
-    };
-
     return [
       {
         title: t("dashboard.stats.dailyRevenue", "Daily Revenue"),
         value: formatAFN(stats.daily_revenue_afn),
         secondaryValue: formatUSD(stats.daily_revenue_usd),
         accent: "green",
-        trend: computeTrend(stats.daily_revenue, stats.yesterday_revenue),
-        sparklineData: generateSparkline(stats.daily_revenue, stats.yesterday_revenue),
+        trend: computeTrend(stats.daily_revenue_afn, stats.yesterday_revenue_afn),
       },
       {
         title: t("dashboard.stats.patientsToday", "Patients Today"),
@@ -173,7 +155,6 @@ const Dashboard: React.FC = () => {
         accent: "blue",
         trend: computeTrend(stats.patients_today, stats.yesterday_patients),
         context: t("dashboard.todayAppointments", "today's appointments"),
-        sparklineData: generateSparkline(stats.patients_today, stats.yesterday_patients),
       },
       {
         title: t("dashboard.stats.outstandingBalance", "Outstanding Balance"),
@@ -189,8 +170,7 @@ const Dashboard: React.FC = () => {
         value: String(stats.procedures_performed).padStart(2, "0"),
         accent: "purple",
         trend: computeTrend(stats.procedures_performed, stats.yesterday_procedures),
-        context: t("dashboard.thisMonth", "this month"),
-        sparklineData: generateSparkline(stats.procedures_performed, stats.yesterday_procedures),
+        context: t("dashboard.stats.todayContext", "today"),
       },
       {
         title: t("dashboard.stats.dailyExpenses", "Daily Expenses"),
@@ -198,23 +178,26 @@ const Dashboard: React.FC = () => {
         secondaryValue: formatUSD(stats.daily_expenses_usd),
         accent: "red",
         trend: (() => {
-          const trend = computeTrend(stats.daily_expenses, stats.yesterday_expenses);
-          return trend ? { value: trend.value, positive: !trend.positive } : undefined;
+          const raw = computeTrend(stats.daily_expenses_afn, stats.yesterday_expenses_afn);
+          if (!raw) return undefined;
+          return {
+            value: raw.value,
+            positive: !raw.positive,
+            direction: raw.positive ? "up" : "down",
+          };
         })(),
         onClick: () => navigate("/expenses"),
-        sparklineData: generateSparkline(stats.daily_expenses, stats.yesterday_expenses),
       },
       {
         title: t("dashboard.stats.netToday", "Net Today"),
         value: formatAFN(stats.net_today_afn),
         secondaryValue: formatUSD(stats.net_today_usd),
         accent: "teal",
-        trend: computeTrend(stats.net_today, stats.yesterday_revenue - stats.yesterday_expenses),
-        context: t("dashboard.stats.netContext", "revenue minus expenses"),
-        sparklineData: generateSparkline(
-          stats.net_today,
-          stats.yesterday_revenue - stats.yesterday_expenses,
+        trend: computeTrend(
+          stats.net_today_afn,
+          stats.yesterday_revenue_afn - stats.yesterday_expenses_afn,
         ),
+        context: t("dashboard.stats.netContext", "revenue minus expenses"),
       },
     ];
   }, [stats, statsLoading, statsError, t]);
@@ -400,7 +383,8 @@ const Dashboard: React.FC = () => {
           </h1>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-[10px] text-gray-400 dark:text-gray-500">
-              {t("dashboard.lastUpdated", "Last updated")}: {format(lastUpdated, "HH:mm:ss")}
+              {t("dashboard.lastUpdated", "Last updated")}:{" "}
+              {dataUpdatedAt > 0 ? format(dataUpdatedAt, "HH:mm:ss") : "--:--:--"}
             </span>
             <div
               className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"
@@ -432,7 +416,6 @@ const Dashboard: React.FC = () => {
             secondary={stat.secondary}
             secondaryValue={stat.secondaryValue}
             context={stat.context}
-            sparklineData={stat.sparklineData}
             onClick={stat.onClick}
           />
         ))}

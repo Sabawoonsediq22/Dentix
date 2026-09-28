@@ -259,9 +259,9 @@ const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             {/* Logout button */}
             <Button
               onClick={handleLogout}
-              variant="ghost"
+              variant="destructive"
               size="icon"
-              className="cursor-pointer border rounded-lg dark:border-gray-500 hover:bg-muted/50 transition-colors"
+              className="cursor-pointer rounded-lg transition-colors"
               title={t("auth.logout")}
             >
               <svg

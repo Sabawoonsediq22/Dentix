@@ -341,6 +341,20 @@ impl InvoiceService {
         .fetch_one(pool)
         .await?;
 
+        if final_paid_afn > 0.0 || final_paid_usd > 0.0 {
+            sqlx::query(
+                "INSERT INTO payments (id, invoice_id, amount_afn, amount_usd, method, notes, received_at)
+                 VALUES (?, ?, ?, ?, 'Cash', '', ?)",
+            )
+            .bind(format!("PAY-{}", uuid::Uuid::new_v4().simple()))
+            .bind(&id)
+            .bind(final_paid_afn)
+            .bind(final_paid_usd)
+            .bind(&now)
+            .execute(pool)
+            .await?;
+        }
+
         Ok(invoice)
     }
 

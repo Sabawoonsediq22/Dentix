@@ -31,7 +31,8 @@
       "proceduresPerformed": "Procedures Performed",
       "dailyExpenses": "Daily Expenses",
       "netToday": "Net Today",
-      "netContext": "revenue minus expenses"
+      "netContext": "revenue minus expenses",
+      "todayContext": "today"
     },
     "patientsFlow": "Patients Flow",
     "visits": "Visits",
@@ -55,8 +56,7 @@
       "status": "STATUS"
     },
     "noRecentPatients": "No recent patients",
-    "todayAppointments": "today's appointments",
-    "thisMonth": "this month"
+    "todayAppointments": "today's appointments"
   },
   "settings": {
     "language": "Language",
