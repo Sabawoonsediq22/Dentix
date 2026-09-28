@@ -4,11 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, LoadingSpinner, DatePicker, B
 import { useReportSummary, useMonthlyRevenue } from "../hooks/useReports";
 import Chart from "react-apexcharts";
 import { PatientIcon, ToothIcon, DownloadIcon, FileIcon, CurrencyIcon } from "../shared/icons/icons";
-import type { MonthlyRevenuePoint, DailyTrendPoint, ReportFilter } from "../types/ApiTypes";
+import type { MonthlyRevenuePoint, ReportFilter } from "../types/ApiTypes";
 import { exportPatientsReport, exportFinancialReport, exportTreatmentReport, exportExpensesReport } from "../lib/export";
 import type { ReportFormat } from "../lib/export";
 import { toast } from "../lib/toast-utils";
-import SparklineChart from "../components/charts/SparklineChart";
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -38,15 +37,14 @@ interface StatCardProps {
   title: string;
   value: string;
   valueUsd?: string;
-  trendData?: DailyTrendPoint[];
-  trendColor?: string;
   change?: {
     value: string;
     positive?: boolean;
+    direction?: "up" | "down";
   };
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, valueUsd, trendData, trendColor = "#0d9488", change }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, valueUsd, change }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow dark:border-gray-700 dark:bg-gray-800 flex flex-col">
     <div className="flex items-start justify-between">
       <div className="min-w-0 flex-1">
@@ -70,19 +68,14 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, valueUsd, trendData, 
                   ? "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-500/10"
                   : "text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-500/10"
             }`}>
-              {change.positive === true && "↑"}
-              {change.positive === false && "↓"}
+              {change.positive !== undefined &&
+                ((change.direction ?? (change.positive ? "up" : "down")) === "up" ? "↑" : "↓")}
               {change.value}
             </span>
           </div>
         )}
       </div>
     </div>
-    {trendData && (
-      <div className="mt-3 -mx-1">
-        <SparklineChart data={trendData} color={trendColor} height={50} />
-      </div>
-    )}
   </div>
 );
 
@@ -134,22 +127,10 @@ const Reports: React.FC = () => {
   const statCards = useMemo(() => {
     if (!summary) return [];
 
-    const sumTrend = (data: DailyTrendPoint[]) =>
-      data.reduce((acc, d) => acc + d.value, 0);
-
-    const currentVisits = sumTrend(summary.visits_trend);
-    const currentRevenue = sumTrend(summary.revenue_trend);
-    const currentExpenses = sumTrend(summary.expenses_trend);
-    const currentOutstanding = sumTrend(summary.outstanding_trend);
-    const currentNet = currentRevenue - currentExpenses;
-    const prevNet = summary.prev_revenue - summary.prev_expenses;
-
-    const netTrend: DailyTrendPoint[] = summary.revenue_trend.map((point, idx) => ({
-      day: point.day,
-      value: point.value - (summary.expenses_trend[idx]?.value ?? 0),
-    }));
-
-    const pct = (cur: number, prev: number): { value: string; positive: boolean } | undefined => {
+    const pct = (
+      cur: number,
+      prev: number,
+    ): { value: string; positive: boolean; direction: "up" | "down" } | undefined => {
       if (prev <= 0) return undefined;
       const change = ((cur - prev) / prev) * 100;
       const periodLabel = filterType === "daily"
@@ -162,55 +143,51 @@ const Reports: React.FC = () => {
       return {
         value: `${Math.abs(change).toFixed(1)}% ${periodLabel}`,
         positive: change >= 0,
+        direction: change >= 0 ? "up" : "down",
       };
     };
+
+    const lowerIsBetter = (
+      c: { value: string; positive: boolean; direction: "up" | "down" } | undefined,
+    ) => (c ? { ...c, positive: !c.positive } : undefined);
+
+    const currentNetAfn = summary.revenue_this_month_afn - summary.expenses_this_month_afn;
+    const prevNetAfn = summary.prev_revenue_afn - summary.prev_expenses_afn;
 
     return [
       {
         title: t("reports.stats.activePatients", "Active Patients"),
         value: String(summary.active_patients),
-        trendData: summary.active_patients_trend,
-        trendColor: "#3b82f6",
         change: pct(summary.active_patients, summary.prev_active_patients),
       },
       {
         title: t("reports.stats.totalVisits", "Total Visits"),
         value: String(summary.total_visits_this_month),
-        trendData: summary.visits_trend,
-        trendColor: "#0d9488",
-        change: pct(currentVisits, summary.prev_total_visits),
+        change: pct(summary.total_visits_this_month, summary.prev_total_visits),
       },
       {
         title: t("reports.stats.revenue", "Revenue"),
         value: formatAFN(summary.revenue_this_month_afn),
         valueUsd: formatUSDOptional(summary.revenue_this_month_usd),
-        trendData: summary.revenue_trend,
-        trendColor: "#22c55e",
-        change: pct(currentRevenue, summary.prev_revenue),
+        change: pct(summary.revenue_this_month_afn, summary.prev_revenue_afn),
       },
       {
         title: t("reports.stats.expenses", "Expenses"),
         value: formatAFN(summary.expenses_this_month_afn),
         valueUsd: formatUSDOptional(summary.expenses_this_month_usd),
-        trendData: summary.expenses_trend,
-        trendColor: "#ef4444",
-        change: pct(currentExpenses, summary.prev_expenses),
+        change: lowerIsBetter(pct(summary.expenses_this_month_afn, summary.prev_expenses_afn)),
       },
       {
         title: t("reports.stats.netProfit", "Net Profit"),
-        value: formatAFN(summary.revenue_this_month_afn - summary.expenses_this_month_afn),
+        value: formatAFN(currentNetAfn),
         valueUsd: formatUSDOptional(summary.revenue_this_month_usd - summary.expenses_this_month_usd),
-        trendData: netTrend,
-        trendColor: "#8b5cf6",
-        change: pct(currentNet, prevNet),
+        change: pct(currentNetAfn, prevNetAfn),
       },
       {
         title: t("reports.stats.outstanding", "Outstanding"),
         value: formatAFN(summary.outstanding_balance_afn),
         valueUsd: formatUSDOptional(summary.outstanding_balance_usd),
-        trendData: summary.outstanding_trend,
-        trendColor: "#f59e0b",
-        change: pct(currentOutstanding, summary.prev_outstanding),
+        change: lowerIsBetter(pct(summary.outstanding_balance_afn, summary.prev_outstanding_afn)),
       },
     ];
   }, [summary, t, filterType]);

@@ -39,7 +39,8 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
-    "procedureDistribution": "Procedure Distribution",
+    "financeDistribution": "Finance Overview",
+    "netProfitFormula": "Net Profit = Revenue - Expenses",
     "recentPatients": "Recent Patients",
     "viewAllPatients": "View All Patients",
     "notifications": {

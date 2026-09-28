@@ -2,7 +2,8 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
-import { useDashboardStats, usePatientsFlow, useProcedureDistribution, useRecentPatients } from "../hooks/useDashboard";
+import { useDashboardStats, usePatientsFlow, useRecentPatients } from "../hooks/useDashboard";
+import { useReportSummary } from "../hooks/useReports";
 import { useUpdateVisitStatus } from "../hooks/useVisits";
 import { toast } from "../lib/toast-utils";
 import StatCard, { type CardAccent } from "../components/dashboard/StatCard";
@@ -12,14 +13,13 @@ import { Badge, Button, Select } from "../components/ui";
 import ChartCard from "../components/dashboard/ChartCard";
 import Chart from "react-apexcharts";
 import type { ApexOptions } from "apexcharts";
+import type { ReportFilter } from "../types/ApiTypes";
 
-const COLORS = [
-  "#006A71", "#005E8A", "#F2C12E", "#9B5DE5", "#00C49A",
-  "#FF6B6B", "#FF8C42", "#4ECDC4", "#6C5CE7", "#A8E6CF",
-  "#FFD93D", "#FF6B6B", "#95E1D3", "#F38181", "#AA96DA",
-  "#FCBAD3", "#A1C4FD", "#C2E9FB", "#D4A5A5", "#9ED2C6",
-  "#FFB7B2", "#B5EAD7",
-];
+const FINANCE_COLORS = {
+  revenue: "#10b981",
+  expenses: "#ef4444",
+  outstanding: "#f59e0b",
+};
 
 const formatAFN = (val: number) =>
   val.toLocaleString("en-US", {
@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [flowMode, setFlowMode] = useState<"daily" | "weekly" | "monthly">("weekly");
-  const [procMode, setProcMode] = useState<"daily" | "weekly" | "monthly">("daily");
+  const [financeMode, setFinanceMode] = useState<"daily" | "weekly" | "monthly">("daily");
   const isDark = useDarkMode();
 
   const {
@@ -92,7 +92,12 @@ const Dashboard: React.FC = () => {
     dataUpdatedAt,
   } = useDashboardStats();
   const { data: flowData } = usePatientsFlow(flowMode);
-  const { data: procData } = useProcedureDistribution(procMode);
+  const financeFilter = React.useMemo<ReportFilter>(
+    () => ({ filter_type: financeMode }),
+    [financeMode],
+  );
+  const { data: financeSummary, isLoading: financeLoading } =
+    useReportSummary(financeFilter);
   const { data: recentPatients, refetch: refetchRecentPatients } =
     useRecentPatients(4);
   const updateStatusMutation = useUpdateVisitStatus();
@@ -371,6 +376,31 @@ const Dashboard: React.FC = () => {
     [flowData, t],
   );
 
+  const financeSlices = React.useMemo(() => {
+    if (!financeSummary) return [];
+    return [
+      {
+        label: t("reports.stats.revenue", "Revenue"),
+        value: financeSummary.revenue_this_month_afn,
+        color: FINANCE_COLORS.revenue,
+      },
+      {
+        label: t("reports.stats.expenses", "Expenses"),
+        value: financeSummary.expenses_this_month_afn,
+        color: FINANCE_COLORS.expenses,
+      },
+      {
+        label: t("reports.stats.outstanding", "Outstanding"),
+        value: financeSummary.outstanding_balance_afn,
+        color: FINANCE_COLORS.outstanding,
+      },
+    ].filter((slice) => slice.value > 0);
+  }, [financeSummary, t]);
+
+  const netProfit =
+    (financeSummary?.revenue_this_month_afn ?? 0) -
+    (financeSummary?.expenses_this_month_afn ?? 0);
+
   return (
     <div className="space-y-4 sm:space-y-5 xl:space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
@@ -448,12 +478,12 @@ const Dashboard: React.FC = () => {
         </ChartCard>
 
         <ChartCard
-          title={t("dashboard.procedureDistribution", "Procedure Distribution")}
+          title={t("dashboard.financeDistribution", "Finance Overview")}
           className="col-span-1 lg:col-span-5"
           action={
             <Select
-              value={procMode}
-              onChange={(e) => setProcMode(e.target.value as "daily" | "weekly" | "monthly")}
+              value={financeMode}
+              onChange={(e) => setFinanceMode(e.target.value as "daily" | "weekly" | "monthly")}
               className="w-auto text-xs sm:text-sm py-1 px-2 min-w-30 cursor-pointer"
             >
               <option value="daily">{t("reports.filter.today", "Today")}</option>
@@ -462,61 +492,93 @@ const Dashboard: React.FC = () => {
             </Select>
           }
         >
-          <div className="h-56 sm:h-64 lg:h-72 w-full">
-            {procData && procData.length > 0 ? (
-              <Chart
-                options={{
-                  chart: {
-                    type: "pie",
-                    height: "100%",
-                    toolbar: { show: false },
-                    fontFamily: "Inter, system-ui, sans-serif",
-                    background: "transparent",
-                    animations: {
-                      enabled: true,
-                      easing: "easeinout",
-                      speed: 600,
-                    },
-                  },
-                  colors: COLORS.slice(0, procData.length),
-                  labels: procData.map((d) => d.name),
-                  legend: { show: false },
-                  dataLabels: {
-                    enabled: true,
-                    formatter: (val: number) => `${val.toFixed(1)}%`,
-                    style: {
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      colors: [isDark ? "#e5e7eb" : "#374151"],
-                    },
-                    dropShadow: { enabled: false },
-                  },
-                  tooltip: {
-                    theme: isDark ? "dark" : "light",
-                    style: { fontSize: "12px" },
-                    y: { formatter: (val: number) => String(val) },
-                  },
-                  stroke: {
-                    width: 2,
-                    colors: [isDark ? "#1f2937" : "#ffffff"],
-                  },
-                  responsive: [
-                    {
-                      breakpoint: 640,
-                      options: {
-                        chart: { height: 220 },
-                        legend: { fontSize: "10px" },
+          <div>
+            <div className="h-44 sm:h-52 lg:h-60 w-full">
+              {financeLoading ? (
+                <div className="h-full w-full animate-pulse rounded-xl bg-gray-100 dark:bg-gray-700/40" />
+              ) : financeSlices.length > 0 ? (
+                <Chart
+                  options={{
+                    chart: {
+                      type: "pie",
+                      height: "100%",
+                      toolbar: { show: false },
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      background: "transparent",
+                      animations: {
+                        enabled: true,
+                        easing: "easeinout",
+                        speed: 600,
                       },
                     },
-                  ],
-                }}
-                series={procData.map((d) => d.count)}
-                type="pie"
-                height="100%"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 gap-2">
-                <span className="text-xs font-medium">{t("dashboard.noDataAvailable", "No data available")}</span>
+                    colors: financeSlices.map((s) => s.color),
+                    labels: financeSlices.map((s) => s.label),
+                    legend: {
+                      show: true,
+                      position: "bottom",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      fontFamily: "Inter, system-ui, sans-serif",
+                      markers: {
+                        strokeWidth: 0,
+                        size: 8,
+                        offsetX: -2,
+                      },
+                      itemMargin: { horizontal: 8, vertical: 4 },
+                      labels: {
+                        colors: isDark ? "#d1d5db" : "#374151",
+                        useSeriesColors: false,
+                      },
+                    },
+                    dataLabels: {
+                      enabled: true,
+                      formatter: (val: number) => `${val.toFixed(1)}%`,
+                      style: {
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        colors: [isDark ? "#e5e7eb" : "#374151"],
+                      },
+                      dropShadow: { enabled: false },
+                    },
+                    tooltip: {
+                      theme: isDark ? "dark" : "light",
+                      style: { fontSize: "12px" },
+                      y: { formatter: (val: number) => formatAFN(val) },
+                    },
+                    stroke: {
+                      width: 2,
+                      colors: [isDark ? "#1f2937" : "#ffffff"],
+                    },
+                    responsive: [
+                      {
+                        breakpoint: 640,
+                        options: {
+                          legend: { fontSize: "10px" },
+                        },
+                      },
+                    ],
+                  }}
+                  series={financeSlices.map((s) => s.value)}
+                  type="pie"
+                  height="100%"
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 gap-2">
+                  <span className="text-xs font-medium">{t("dashboard.noDataAvailable", "No data available")}</span>
+                </div>
+              )}
+            </div>
+            {financeSummary && financeSlices.length > 0 && (
+              <div className="mt-3 border-t border-gray-100 dark:border-gray-700 pt-2.5 text-center">
+                <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                  {t("dashboard.netProfitFormula", "Net Profit = Revenue - Expenses")}
+                </div>
+                <div dir="ltr" className="mt-1 text-xs font-semibold text-gray-900 dark:text-white">
+                  {formatAFN(financeSummary.revenue_this_month_afn)} - {formatAFN(financeSummary.expenses_this_month_afn)} ={" "}
+                  <span className={netProfit >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                    {formatAFN(netProfit)}
+                  </span>
+                </div>
               </div>
             )}
           </div>

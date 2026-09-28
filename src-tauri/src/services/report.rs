@@ -1,7 +1,7 @@
 use sqlx::SqlitePool;
 use crate::models::*;
 use crate::services::errors::AppResult;
-use chrono::{Utc, Datelike, NaiveDate, Duration};
+use chrono::{Local, Datelike, NaiveDate, Duration};
 
 fn days_in_month(year: i32, month: u32) -> i64 {
     let (y, m) = if month == 12 { (year + 1, 1) } else { (year, month + 1) };
@@ -36,7 +36,7 @@ pub struct ReportService;
 
 impl ReportService {
     pub async fn summary(pool: &SqlitePool, filter: &ReportFilter) -> AppResult<ReportSummary> {
-        let now = Utc::now();
+        let now = Local::now();
 
         let (start_date, end_date, prev_start, prev_end) = match filter.filter_type.as_str() {
             "daily" => {
@@ -67,8 +67,20 @@ impl ReportService {
                 let today = now.format("%Y-%m-%d").to_string();
                 let (prev_year, prev_month) = if now.month() == 1 { (now.year() - 1, 12u32) } else { (now.year(), now.month() - 1) };
                 let prev_month_start = format!("{}-{:02}-01", prev_year, prev_month);
-                let prev_month_end = format!("{}-{:02}-{}", prev_year, prev_month, days_in_month(prev_year, prev_month));
-                (month_start, today, prev_month_start, prev_month_end)
+                // Compare the same number of elapsed days into the previous month
+                // (month-to-date vs an equal-length window), not a partial month
+                // against a full previous month.
+                let prev_month_start_dt = NaiveDate::from_ymd_opt(prev_year, prev_month, 1)
+                    .unwrap_or(now.date_naive());
+                let prev_month_end_dt = prev_month_start_dt
+                    + Duration::days(days_in_month(prev_year, prev_month) - 1);
+                let elapsed_days = now.date_naive().day();
+                let mut prev_end_dt =
+                    prev_month_start_dt + Duration::days(elapsed_days.max(1) as i64 - 1);
+                if prev_end_dt > prev_month_end_dt {
+                    prev_end_dt = prev_month_end_dt;
+                }
+                (month_start, today, prev_month_start, prev_end_dt.format("%Y-%m-%d").to_string())
             }
         };
 
@@ -78,7 +90,7 @@ impl ReportService {
 
         let active_patients: i64 = sqlx::query_scalar(
             "SELECT COUNT(DISTINCT patient_id) FROM visits
-             WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
+             WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -86,7 +98,7 @@ impl ReportService {
         .await?;
 
         let total_visits: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM visits WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
+            "SELECT COUNT(*) FROM visits WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -94,7 +106,7 @@ impl ReportService {
         .await?;
 
         let completed_visits: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM visits WHERE status = 'Completed' AND date(visit_date) >= ? AND date(visit_date) <= ?"
+            "SELECT COUNT(*) FROM visits WHERE status = 'Completed' AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -102,7 +114,7 @@ impl ReportService {
         .await?;
 
         let cancelled_visits: i64 = sqlx::query_scalar(
-            "SELECT COUNT(*) FROM visits WHERE status = 'Cancelled' AND date(visit_date) >= ? AND date(visit_date) <= ?"
+            "SELECT COUNT(*) FROM visits WHERE status = 'Cancelled' AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -111,9 +123,9 @@ impl ReportService {
 
         let revenue_row: (f64, f64) = sqlx::query_as(
             "SELECT
-               COALESCE(SUM(COALESCE(paid_afn, 0.0)), 0.0),
-               COALESCE(SUM(COALESCE(paid_usd, 0.0)), 0.0)
-             FROM invoices WHERE date(issued_at) >= ? AND date(issued_at) <= ?"
+               COALESCE(SUM(COALESCE(amount_afn, 0.0)), 0.0),
+               COALESCE(SUM(COALESCE(amount_usd, 0.0)), 0.0)
+             FROM payments WHERE date(received_at, 'localtime') >= ? AND date(received_at, 'localtime') <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -124,7 +136,7 @@ impl ReportService {
             "SELECT
                COALESCE(SUM(COALESCE(outstanding_afn, 0.0)), 0.0),
                COALESCE(SUM(COALESCE(outstanding_usd, 0.0)), 0.0)
-             FROM invoices WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?"
+             FROM invoices WHERE status IN ('Unpaid', 'Partial') AND date(issued_at, 'localtime') >= ? AND date(issued_at, 'localtime') <= ?"
         )
         .bind(&start_date)
         .bind(&end_date)
@@ -144,10 +156,10 @@ impl ReportService {
 
         // Daily trends using range-based queries
         let active_patients_rows: Vec<(String, f64)> = sqlx::query_as(
-            "SELECT date(visit_date) as day_str, CAST(COUNT(DISTINCT patient_id) AS REAL) as val
+            "SELECT date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) as day_str, CAST(COUNT(DISTINCT patient_id) AS REAL) as val
              FROM visits
-             WHERE date(visit_date) >= ? AND date(visit_date) <= ?
-             GROUP BY date(visit_date)
+             WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?
+             GROUP BY date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END)
              ORDER BY day_str"
         )
         .bind(&start_date)
@@ -157,10 +169,10 @@ impl ReportService {
         let active_patients_trend = fill_range_daily_trends(start_dt, end_dt, active_patients_rows);
 
         let visits_rows: Vec<(String, f64)> = sqlx::query_as(
-            "SELECT date(visit_date) as day_str, CAST(COUNT(*) AS REAL) as val
+            "SELECT date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) as day_str, CAST(COUNT(*) AS REAL) as val
              FROM visits
-             WHERE date(visit_date) >= ? AND date(visit_date) <= ?
-             GROUP BY date(visit_date)
+             WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?
+             GROUP BY date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END)
              ORDER BY day_str"
         )
         .bind(&start_date)
@@ -170,10 +182,10 @@ impl ReportService {
         let visits_trend = fill_range_daily_trends(start_dt, end_dt, visits_rows);
 
         let revenue_rows: Vec<(String, f64)> = sqlx::query_as(
-            "SELECT date(received_at) as day_str, COALESCE(SUM(COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0)), 0.0) as val
+            "SELECT date(received_at, 'localtime') as day_str, COALESCE(SUM(COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0)), 0.0) as val
              FROM payments
-             WHERE date(received_at) >= ? AND date(received_at) <= ?
-             GROUP BY date(received_at)
+             WHERE date(received_at, 'localtime') >= ? AND date(received_at, 'localtime') <= ?
+             GROUP BY date(received_at, 'localtime')
              ORDER BY day_str"
         )
         .bind(&start_date)
@@ -196,10 +208,10 @@ impl ReportService {
         let expenses_trend = fill_range_daily_trends(start_dt, end_dt, expenses_rows);
 
         let outstanding_rows: Vec<(String, f64)> = sqlx::query_as(
-            "SELECT date(issued_at) as day_str, COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) as val
+            "SELECT date(issued_at, 'localtime') as day_str, COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) as val
              FROM invoices
-             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?
-             GROUP BY date(issued_at)
+             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at, 'localtime') >= ? AND date(issued_at, 'localtime') <= ?
+             GROUP BY date(issued_at, 'localtime')
              ORDER BY day_str"
         )
         .bind(&start_date)
@@ -211,7 +223,7 @@ impl ReportService {
         // Previous period comparisons
         let prev_active_patients: i64 = sqlx::query_scalar(
             "SELECT COUNT(DISTINCT patient_id) FROM visits
-             WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
+             WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -220,7 +232,7 @@ impl ReportService {
 
         let prev_total_visits: i64 = sqlx::query_scalar(
             "SELECT COUNT(*) FROM visits
-             WHERE date(visit_date) >= ? AND date(visit_date) <= ?"
+             WHERE date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) >= ? AND date(CASE WHEN length(visit_date) > 10 THEN date(visit_date, 'localtime') ELSE visit_date END) <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -229,7 +241,7 @@ impl ReportService {
 
         let prev_revenue: f64 = sqlx::query_scalar(
             "SELECT COALESCE(SUM(COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0)), 0.0) FROM payments
-             WHERE date(received_at) >= ? AND date(received_at) <= ?"
+             WHERE date(received_at, 'localtime') >= ? AND date(received_at, 'localtime') <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -241,7 +253,7 @@ impl ReportService {
                COALESCE(SUM(COALESCE(amount_afn, 0.0)), 0.0),
                COALESCE(SUM(COALESCE(amount_usd, 0.0)), 0.0)
              FROM payments
-             WHERE date(received_at) >= ? AND date(received_at) <= ?"
+             WHERE date(received_at, 'localtime') >= ? AND date(received_at, 'localtime') <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -271,7 +283,7 @@ impl ReportService {
 
         let prev_outstanding: f64 = sqlx::query_scalar(
             "SELECT COALESCE(SUM(COALESCE(outstanding_afn, 0.0) + COALESCE(outstanding_usd, 0.0)), 0.0) FROM invoices
-             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?"
+             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at, 'localtime') >= ? AND date(issued_at, 'localtime') <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -283,7 +295,7 @@ impl ReportService {
                COALESCE(SUM(COALESCE(outstanding_afn, 0.0)), 0.0),
                COALESCE(SUM(COALESCE(outstanding_usd, 0.0)), 0.0)
              FROM invoices
-             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at) >= ? AND date(issued_at) <= ?"
+             WHERE status IN ('Unpaid', 'Partial') AND date(issued_at, 'localtime') >= ? AND date(issued_at, 'localtime') <= ?"
         )
         .bind(&prev_start)
         .bind(&prev_end)
@@ -324,7 +336,7 @@ impl ReportService {
     }
 
     pub async fn monthly_revenue(pool: &SqlitePool, filter: &ReportFilter) -> AppResult<Vec<MonthlyRevenuePoint>> {
-        let now = Utc::now();
+        let now = Local::now();
 
         let (start_date, end_date) = match filter.filter_type.as_str() {
             "daily" => {
@@ -359,15 +371,15 @@ impl ReportService {
                         COALESCE(SUM(expenses_afn), 0.0) as expenses_afn,
                         COALESCE(SUM(expenses_usd), 0.0) as expenses_usd
                  FROM (
-                     SELECT date(issued_at) as day,
-                            COALESCE(paid_afn, 0.0) + COALESCE(paid_usd, 0.0) as revenue,
-                            COALESCE(paid_afn, 0.0) as revenue_afn,
-                            COALESCE(paid_usd, 0.0) as revenue_usd,
+                     SELECT date(received_at, 'localtime') as day,
+                            COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0) as revenue,
+                            COALESCE(amount_afn, 0.0) as revenue_afn,
+                            COALESCE(amount_usd, 0.0) as revenue_usd,
                             0.0 as expenses,
                             0.0 as expenses_afn,
                             0.0 as expenses_usd
-                     FROM invoices
-                     WHERE date(issued_at) >= ? AND date(issued_at) <= ?
+                     FROM payments
+                     WHERE date(received_at, 'localtime') >= ? AND date(received_at, 'localtime') <= ?
                      UNION ALL
                      SELECT date(expense_date) as day,
                             0.0 as revenue,
@@ -398,15 +410,15 @@ impl ReportService {
                         COALESCE(SUM(expenses_afn), 0.0) as expenses_afn,
                         COALESCE(SUM(expenses_usd), 0.0) as expenses_usd
                  FROM (
-                     SELECT date(issued_at) as day,
-                            COALESCE(paid_afn, 0.0) + COALESCE(paid_usd, 0.0) as revenue,
-                            COALESCE(paid_afn, 0.0) as revenue_afn,
-                            COALESCE(paid_usd, 0.0) as revenue_usd,
+                     SELECT date(received_at, 'localtime') as day,
+                            COALESCE(amount_afn, 0.0) + COALESCE(amount_usd, 0.0) as revenue,
+                            COALESCE(amount_afn, 0.0) as revenue_afn,
+                            COALESCE(amount_usd, 0.0) as revenue_usd,
                             0.0 as expenses,
                             0.0 as expenses_afn,
                             0.0 as expenses_usd
-                     FROM invoices
-                     WHERE date(issued_at) >= ? AND date(issued_at) <= ?
+                     FROM payments
+                     WHERE date(received_at, 'localtime') >= ? AND date(received_at, 'localtime') <= ?
                      UNION ALL
                      SELECT date(expense_date) as day,
                             0.0 as revenue,

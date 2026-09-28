@@ -49,7 +49,6 @@ import { SearchResult } from "../types/SearchTypes";
 import type {
   DashboardStats,
   PatientsFlowPoint,
-  ProcedureDistribution,
   RecentPatient,
   BackupRecord,
   BackupSettings,
@@ -198,10 +197,7 @@ export const api = {
     stats: () => invoke<DashboardStats>("get_dashboard_stats"),
     patientsFlow: (mode: string) =>
       invoke<PatientsFlowPoint[]>("get_patients_flow", { mode }),
-    procedureDistribution: (mode: string) =>
-      invoke<ProcedureDistribution[]>("get_procedure_distribution", { mode }),
-    recentPatients: () => invoke<RecentPatient[]>("get_recent_patients"),
-  },
+    recentPatients: () => invoke<RecentPatient[]>("get_recent_patients"),  },
   backups: {
     list: () => invoke<BackupRecord[]>("list_backups"),
     backupNow: (target: string, savePath?: string) =>

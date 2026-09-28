@@ -3,7 +3,7 @@
     "dashboard": "ډشبورډ",
     "patients": "ناروغان",
     "visits": "ټولې لیدنې",
-    "billings": "بلینګ",
+    "billings": "بیلونه",
     "expenses": "لګښتونه",
     "reports": "رپورټونه",
     "about": "زموږ په اړه",
@@ -39,7 +39,8 @@
     "daily": "ورځنی",
     "weekly": "اونیز",
     "monthly": "میاشتنی",
-    "procedureDistribution": "د درملنو وېش",
+    "financeDistribution": "مالي وضعیت",
+    "netProfitFormula": "خالص فایده = عاید - لګښتونه",
     "recentPatients": "وروستي ناروغان",
     "viewAllPatients": "ټول ناروغان وګورئ",
     "notifications": {
@@ -230,8 +231,8 @@
     "notifications": {
       "xrayError": "د ایکس-ری پورته کول ناکام شول"
     },
-    "billing": "بلینګ",
-    "billingSummary": "د بلینګ لنډیز",
+    "billing": "بیلونه",
+    "billingSummary": "د بیلونه لنډیز",
     "molar": "مولر",
     "numberOfProcedures": "د درملنو شمېره",
     "totalNumberOfProcedures": "د درملنو ټولټال شمېره",
@@ -272,8 +273,8 @@
     "dragAndDrop": "کلیک وکړئ یا کش او ډراپ کړئ",
     "or": "یا",
     "remove": "لرې کول",
-    "billing": "بلینګ",
-    "billingSummary": "د بلینګ لنډیز",
+    "billing": "بیلونه",
+    "billingSummary": "د بیلونه لنډیز",
     "discount": "تخفیف",
     "discountPlaceholder": "تخفیف دننه کړئ",
     "paidAmount": "ورکړل شوې پیسه",
@@ -436,7 +437,7 @@
     }
   },
   "billing": {
-    "title": "بلینګ",
+    "title": "بیلونه",
     "description": "د ټولو ناروغانو د لیدنو فاکتورونه، تادیات او رسیدونه اداره کړئ.",
     "searchPlaceholder": "د فاکتور شمېره، د ناروغ نوم یا تلیفون له مخې وپلټئ...",
     "loadingInvoices": "فاکتورونه بارېږي...",
@@ -606,7 +607,7 @@
       "title": "زموږ خدمات",
       "dentalManagement": {
         "title": "د غاښونو مدیریت",
-        "desc": "د کلینیک بشپړ عملیات: ناروغان، بلینګ او ریکارډونه."
+        "desc": "د کلینیک بشپړ عملیات: ناروغان، بیلونه او ریکارډونه."
       },
       "customSoftware": {
         "title": "سفارشي سافټویر",
@@ -701,7 +702,7 @@
     "collapse": "پراخول",
     "expand": "پراخول",
     "procedureNote": "د درملنې یادښت",
-    "billingDetails": "د بلینګ جزییات",
+    "billingDetails": "د بیلونه جزییات",
     "quantity": "شمار",
     "unitPrice": "د واحد نرخ",
     "xrayImages": "ایکس-ری انځورونه",
